@@ -1,0 +1,134 @@
+<!-- timeline.wxml - 时间线页面 -->
+<view class="timeline-container">
+  <!-- 顶部状态栏 -->
+  <view class="status-bar">
+    <view class="page-title">时间线</view>
+    <view class="filter-controls" wx:if="{{hasUserInfo && hasCouple}}">
+      <view
+        class="filter-btn {{filterType === 'all' ? 'active' : ''}}"
+        data-type="all"
+        bindtap="onFilterTap"
+      >
+        全部
+      </view>
+      <view
+        class="filter-btn {{filterType === 'todos' ? 'active' : ''}}"
+        data-type="todos"
+        bindtap="onFilterTap"
+      >
+        待办
+      </view>
+      <view
+        class="filter-btn {{filterType === 'photos' ? 'active' : ''}}"
+        data-type="photos"
+        bindtap="onFilterTap"
+      >
+        照片
+      </view>
+      <view
+        class="filter-btn {{filterType === 'anniversaries' ? 'active' : ''}}"
+        data-type="anniversaries"
+        bindtap="onFilterTap"
+      >
+        纪念日
+      </view>
+    </view>
+  </view>
+
+  <!-- 加载状态 -->
+  <view class="loading-container" wx:if="{{isLoading}}">
+    <view class="loading-spinner"></view>
+    <text class="loading-text">加载中...</text>
+  </view>
+
+  <!-- 空状态（未登录或没有数据） -->
+  <view class="empty-state-container" wx:if="{{!hasUserInfo || !hasCouple}}">
+    <view class="empty-state-illustration">📅</view>
+    <view class="empty-state-content">
+      <text class="empty-state-title" wx:if="{{!hasUserInfo}}">请先登录</text>
+      <text class="empty-state-title" wx:if="{{hasUserInfo && !hasCouple}}">还没有情侣空间</text>
+
+      <text class="empty-state-description" wx:if="{{!hasUserInfo}}">
+        登录后查看你们的时间线
+      </text>
+      <text class="empty-state-description" wx:if="{{hasUserInfo && !hasCouple}}">
+        创建情侣空间，开始记录你们的故事
+      </text>
+
+      <view class="empty-state-actions">
+        <button
+          class="btn-primary"
+          wx:if="{{!hasUserInfo}}"
+          bindtap="onLoginTap"
+        >
+          立即登录
+        </button>
+        <button
+          class="btn-primary"
+          wx:if="{{hasUserInfo && !hasCouple}}"
+          bindtap="onCreateCoupleTap"
+        >
+          创建情侣空间
+        </button>
+      </view>
+    </view>
+  </view>
+
+  <!-- 时间线内容 -->
+  <scroll-view
+    class="timeline-content"
+    wx:if="{{hasUserInfo && hasCouple && !isLoading}}"
+    scroll-y
+    refresher-enabled="{{true}}"
+    bindrefresherrefresh="onPullDownRefresh"
+    refresher-triggered="{{isRefreshing}}"
+  >
+    <!-- 时间线事件列表 -->
+    <view class="timeline-list">
+      <view
+        class="timeline-event"
+        wx:for="{{timelineEvents}}"
+        wx:key="id"
+        data-id="{{item.id}}"
+        data-type="{{item.type}}"
+        bindtap="onEventTap"
+      >
+        <!-- 时间线连接线 -->
+        <view class="timeline-connector" wx:if="{{index !== timelineEvents.length - 1}}"></view>
+
+        <!-- 事件图标 -->
+        <view class="event-icon" style="background-color: {{item.color}}20; border-color: {{item.color}}">
+          <text class="icon">{{item.icon}}</text>
+        </view>
+
+        <!-- 事件内容 -->
+        <view class="event-content">
+          <view class="event-header">
+            <text class="event-title">{{item.title}}</text>
+            <text class="event-date">{{item.date}}</text>
+          </view>
+          <text class="event-description">{{item.description}}</text>
+          <view class="event-meta">
+            <text class="event-user {{item.user}}">
+              {{item.user === 'me' ? '我' : item.user === 'partner' ? '伴侣' : '两人'}}
+            </text>
+            <text class="event-time">{{item.timestamp}}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 空白区域 -->
+    <view class="content-spacer"></view>
+  </scroll-view>
+
+  <!-- 添加事件浮动按钮 -->
+  <view
+    class="fab-container"
+    wx:if="{{hasUserInfo && hasCouple && !isLoading}}"
+  >
+    <button class="fab-button" bindtap="onAddEventTap">
+      <text class="fab-icon">+</text>
+    </button>
+  </view>
+</view>

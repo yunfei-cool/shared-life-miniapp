@@ -1,0 +1,182 @@
+<view class="profile-container">
+  <view class="top-bar">
+    <view>
+      <text class="page-title">我们</text>
+      <text class="page-subtitle">共享空间和状态</text>
+    </view>
+  </view>
+
+  <view class="loading-container" wx:if="{{isLoading}}">
+    <view class="loading-spinner"></view>
+    <text class="loading-text">正在加载空间...</text>
+  </view>
+
+  <view class="empty-state card" wx:elif="{{!isLoggedIn}}">
+    <image class="state-art" src="../../images/shared-space-art.svg" mode="aspectFit"></image>
+    <text class="state-kicker">先登录</text>
+    <text class="state-title">登录后才能创建或加入共享空间</text>
+    <text class="state-description">
+      登录后就能创建空间、邀请对方，一起记录。
+    </text>
+    <button class="primary-button" bindtap="onLoginTap">立即登录</button>
+  </view>
+
+  <scroll-view
+    class="profile-scroll"
+    wx:else
+    scroll-y
+  >
+    <view class="hero-card card">
+      <view class="hero-main">
+        <image class="user-avatar" wx:if="{{userInfo && userInfo.avatarUrl}}" src="{{userInfo.avatarUrl}}" mode="aspectFill"></image>
+        <view class="avatar-placeholder" wx:else>{{userInitial}}</view>
+        <view class="hero-copy">
+          <view class="hero-name-row">
+            <text class="user-name">{{userDisplayName}}</text>
+            <text class="status-tag warning compact" wx:if="{{profileNeedsAttention}}">待完善</text>
+          </view>
+          <text class="user-status" wx:if="{{pairState === 'single'}}">还没有共享空间</text>
+          <text class="user-status" wx:if="{{pairState === 'invited'}}">邀请码已发出</text>
+          <text class="user-status" wx:if="{{pairState === 'paired' && coupleInfo && coupleInfo.isPreview}}">本地预览中</text>
+          <text class="user-status" wx:if="{{pairState === 'paired' && !(coupleInfo && coupleInfo.isPreview)}}">已连接共享空间</text>
+          <text class="user-hint">{{profileHint}}</text>
+          <view class="hero-inline-actions">
+            <view class="hero-inline-action" bindtap="onProfileEditTap">{{profileActionLabel}}</view>
+          </view>
+        </view>
+      </view>
+      <view class="summary-row">
+        <view class="summary-pill">
+          <text class="summary-value">{{summary.spendCount}}</text>
+          <text class="summary-label">最近记账</text>
+        </view>
+        <view class="summary-pill">
+          <text class="summary-value">{{summary.todoCount}}</text>
+          <text class="summary-label">未完成待办</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="card section-card profile-editor-card" wx:if="{{profileEditorVisible}}">
+      <view class="section-row">
+        <text class="section-title">完善资料</text>
+        <text class="status-tag neutral">会同步到共享空间</text>
+      </view>
+      <text class="section-copy">把昵称和头像补齐后，首页的启动流程会完整，双方也能更自然地识别彼此。</text>
+      <view class="profile-editor-body">
+        <button class="avatar-picker" open-type="chooseAvatar" bindchooseavatar="onChooseAvatar">
+          <image class="avatar-picker-image" wx:if="{{profileDraft.avatarUrl}}" src="{{profileDraft.avatarUrl}}" mode="aspectFill"></image>
+          <view class="avatar-picker-fallback" wx:else>上传头像</view>
+        </button>
+        <view class="profile-editor-fields">
+          <view class="field-group">
+            <text class="field-label">昵称</text>
+            <input
+              class="profile-input"
+              placeholder="输入你希望展示的昵称"
+              maxlength="20"
+              value="{{profileDraft.nickName}}"
+              bindinput="onProfileNickNameInput"
+            />
+          </view>
+        </view>
+      </view>
+      <view class="profile-editor-actions">
+        <button class="ghost-button editor-button" bindtap="onProfileEditCancelTap">取消</button>
+        <button class="primary-button editor-button" bindtap="onProfileSaveTap">保存资料</button>
+      </view>
+    </view>
+
+    <view class="card section-card" wx:if="{{pairState === 'single'}}">
+      <image class="section-art" src="../../images/shared-space-art.svg" mode="aspectFit"></image>
+      <text class="section-title">创建共享空间</text>
+      <text class="section-copy">
+        创建一个空间，或输入邀请码加入。
+      </text>
+      <button class="primary-button" bindtap="onCreateCoupleTap">创建共享空间</button>
+      <button class="secondary-button" bindtap="onJoinCoupleTap">输入邀请码加入</button>
+      <view class="debug-preview-box" wx:if="{{showPreviewTools}}">
+        <text class="debug-preview-copy">开发环境可先用演示伴侣预览，不用真的邀请对方。</text>
+        <button class="ghost-button preview-button" bindtap="onPreviewCoupleTap">本地预览共享空间</button>
+      </view>
+    </view>
+
+    <view class="card section-card" wx:if="{{pairState === 'invited'}}">
+      <image class="section-art" src="../../images/shared-space-art.svg" mode="aspectFit"></image>
+      <view class="section-row">
+        <text class="section-title">邀请已发出</text>
+        <text class="status-tag warning">等待加入</text>
+      </view>
+      <text class="section-copy">把邀请码发给对方，对方输入后就能一起记录和看报告。</text>
+      <view class="code-box">
+        <text class="code-value">{{coupleInfo.inviteCode}}</text>
+        <text class="code-action" bindtap="onCopyInviteCode">复制</text>
+      </view>
+      <button class="primary-button" bindtap="onCopyInviteCode">复制邀请码</button>
+      <view class="debug-preview-box" wx:if="{{showPreviewTools}}">
+        <text class="debug-preview-copy">如果只是调试，可以先切到演示伴侣预览，不会改掉邀请码。</text>
+        <button class="ghost-button preview-button" bindtap="onPreviewCoupleTap">本地预览共享空间</button>
+      </view>
+      <button class="ghost-button" bindtap="onLeaveCoupleTap">清掉当前空间</button>
+    </view>
+
+    <view class="card section-card" wx:if="{{pairState === 'paired'}}">
+      <view class="section-row">
+        <text class="section-title">共享空间已连接</text>
+        <text class="status-tag {{coupleInfo && coupleInfo.isPreview ? 'warning' : 'success'}}">{{coupleInfo && coupleInfo.isPreview ? '本地预览' : '已配对'}}</text>
+      </view>
+      <view class="partner-card">
+        <image class="partner-avatar" wx:if="{{partnerInfo && partnerInfo.avatarUrl}}" src="{{partnerInfo.avatarUrl}}" mode="aspectFill"></image>
+        <view class="partner-avatar partner-avatar-fallback" wx:else>{{partnerInitial}}</view>
+        <view class="partner-copy">
+          <view class="partner-head">
+            <text class="partner-name">{{partnerDisplayName}}</text>
+            <text class="status-tag warning compact" wx:if="{{partnerProfileNeedsAttention}}">待完善</text>
+          </view>
+          <text class="partner-meta" wx:if="{{partnerProfileNeedsAttention}}">对方还差可共享的昵称或头像，在对方手机上更新后就会显示在这里。</text>
+          <text class="partner-meta" wx:else>现在可以一起记录和看报告。</text>
+        </view>
+      </view>
+      <view class="space-meta">
+        <text class="meta-line">创建日期: {{coupleInfo.createdAt}}</text>
+        <view class="step-sync-entry" bindtap="onManageStepSyncTap">
+          <view class="step-sync-copy">
+            <text class="step-sync-title">微信步数同步</text>
+            <text class="step-sync-detail">{{stepSyncStatusDetail}}</text>
+          </view>
+          <text class="step-sync-label">{{stepSyncStatusLabel}}</text>
+        </view>
+      </view>
+      <button class="ghost-button" wx:if="{{coupleInfo && coupleInfo.isPreview}}" bindtap="onExitPreviewTap">退出本地预览</button>
+      <button class="ghost-button danger" bindtap="onLeaveCoupleTap">离开共享空间</button>
+    </view>
+
+    <view class="card section-card">
+      <text class="section-title">账号与帮助</text>
+      <view class="menu-list">
+        <view class="menu-item" bindtap="onProfileEditTap">
+          <text class="menu-label">{{profileActionLabel}}</text>
+          <text class="menu-arrow">›</text>
+        </view>
+        <view class="menu-item" bindtap="onHelpTap">
+          <text class="menu-label">查看使用说明</text>
+          <text class="menu-arrow">›</text>
+        </view>
+        <view class="menu-item" bindtap="onPrivacyTap">
+          <text class="menu-label">隐私与数据说明</text>
+          <text class="menu-arrow">›</text>
+        </view>
+        <view class="menu-item" bindtap="onDeleteInfoTap">
+          <text class="menu-label">数据删除 / 账号注销说明</text>
+          <text class="menu-arrow">›</text>
+        </view>
+        <view class="menu-item danger-row" bindtap="onLogoutTap">
+          <text class="menu-label danger-text">退出登录</text>
+          <text class="menu-arrow danger-text">›</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="content-spacer"></view>
+  </scroll-view>
+</view>

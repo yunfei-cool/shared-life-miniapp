@@ -1,0 +1,563 @@
+<view class="records-container">
+  <view class="top-bar">
+    <view>
+      <text class="page-title">记录</text>
+      <text class="page-subtitle">把今天发生的事记下来</text>
+    </view>
+  </view>
+
+  <view class="loading-container" wx:if="{{isLoading}}">
+    <view class="loading-spinner"></view>
+    <text class="loading-text">正在加载记录...</text>
+  </view>
+
+  <view class="empty-state card" wx:elif="{{pairState !== 'paired'}}">
+    <image class="empty-art" src="../../images/shared-space-art.svg" mode="aspectFit"></image>
+    <text class="state-title">先连好共享空间，再开始记录</text>
+    <text class="state-description">
+      去「我们」先完成连接。
+    </text>
+    <button class="primary-button" bindtap="onGoSetupTap">去「我们」设置</button>
+  </view>
+
+  <scroll-view class="records-scroll" wx:else scroll-y>
+    <view class="overview-row">
+      <view class="overview-pill finance-pill">
+        <text class="overview-value">{{overviewStats.monthlyExpenseCount}}</text>
+        <text class="overview-label">本月账单</text>
+      </view>
+      <view class="overview-pill neutral-pill">
+        <text class="overview-value">{{overviewStats.openTodoCount}}</text>
+        <text class="overview-label">待办</text>
+      </view>
+      <view class="overview-pill relationship-pill">
+        <text class="overview-value">{{overviewStats.anniversaryCount}}</text>
+        <text class="overview-label">纪念日</text>
+      </view>
+      <view class="overview-pill motion-pill">
+        <text class="overview-value">{{overviewStats.weeklyWorkoutCount}}</text>
+        <text class="overview-label">本周运动</text>
+      </view>
+    </view>
+
+    <view class="segment-bar card segment-{{activeSegment}}">
+      <view class="segment-item expense {{activeSegment === 'expense' ? 'is-active' : ''}}" data-segment="expense" bindtap="onSegmentTap">记账</view>
+      <view class="segment-item todo {{activeSegment === 'todo' ? 'is-active' : ''}}" data-segment="todo" bindtap="onSegmentTap">待办</view>
+      <view class="segment-item anniversary {{activeSegment === 'anniversary' ? 'is-active' : ''}}" data-segment="anniversary" bindtap="onSegmentTap">纪念日</view>
+      <view class="segment-item workout {{activeSegment === 'workout' ? 'is-active' : ''}}" data-segment="workout" bindtap="onSegmentTap">运动</view>
+    </view>
+
+    <view wx:if="{{activeSegment === 'expense'}}">
+      <view class="section-head finance-head">
+        <view>
+          <text class="section-title finance-title">账单列表</text>
+          <text class="section-caption">{{expenseSectionCaption}}</text>
+        </view>
+        <view class="section-actions">
+          <text class="section-count">{{expenseFilteredCount}} 笔</text>
+          <view class="section-button" data-segment="expense" bindtap="onAddRecordTap">新增账单</view>
+        </view>
+      </view>
+
+      <scroll-view class="filter-scroll" scroll-x>
+        <view class="filter-row single-line">
+          <view
+            class="filter-chip {{expenseRangePreset === item.value ? 'active' : ''}}"
+            wx:for="{{expenseRangeOptions}}"
+            wx:key="value"
+            data-value="{{item.value}}"
+            bindtap="onExpenseRangePresetTap"
+          >
+            {{item.label}}
+          </view>
+        </view>
+      </scroll-view>
+
+      <view class="date-range-row" wx:if="{{expenseRangePreset === 'custom'}}">
+        <picker mode="date" value="{{expenseRangeStart ? expenseRangeStart : todayDateKey}}" bindchange="onExpenseRangeStartChange">
+          <view class="date-pill {{expenseRangeStart ? 'active' : ''}}">{{expenseRangeStart ? expenseRangeStart : '开始日期'}}</view>
+        </picker>
+        <text class="date-range-separator">到</text>
+        <picker mode="date" value="{{expenseRangeEnd ? expenseRangeEnd : todayDateKey}}" bindchange="onExpenseRangeEndChange">
+          <view class="date-pill {{expenseRangeEnd ? 'active' : ''}}">{{expenseRangeEnd ? expenseRangeEnd : '结束日期'}}</view>
+        </picker>
+      </view>
+
+      <scroll-view class="filter-scroll compact" scroll-x>
+        <view class="filter-row single-line">
+          <view
+            class="filter-chip subtle {{expenseCategoryFilter === item.value ? 'active' : ''}}"
+            wx:for="{{expenseCategoryOptions}}"
+            wx:key="value"
+            data-value="{{item.value}}"
+            bindtap="onExpenseCategoryFilterTap"
+          >
+            {{item.label}}
+          </view>
+        </view>
+      </scroll-view>
+
+      <view class="filter-row">
+        <view
+          class="filter-chip subtle {{expenseOwnerFilter === item.value ? 'active' : ''}}"
+          wx:for="{{expenseOwnerOptions}}"
+          wx:key="value"
+          data-value="{{item.value}}"
+          bindtap="onExpenseOwnerFilterTap"
+        >
+          {{item.label}}
+        </view>
+      </view>
+
+      <view class="search-shell">
+        <input class="search-input" placeholder="搜索备注、分类、归属" value="{{expenseSearchQuery}}" bindinput="onExpenseSearchInput" />
+        <text class="search-clear" wx:if="{{expenseSearchQuery}}" bindtap="onExpenseSearchClearTap">清空</text>
+      </view>
+
+      <view class="record-empty card" wx:if="{{expenseFilteredCount === 0}}">
+        <text class="record-empty-text">还没有符合条件的账单，换个筛选或新增一笔。</text>
+      </view>
+
+      <view class="expense-group" wx:for="{{expenseGroups}}" wx:key="key">
+        <view class="expense-group-head">
+          <view>
+            <text class="expense-group-title">{{item.label}}</text>
+            <text class="expense-group-meta">{{item.metaLabel ? item.metaLabel + ' · ' : ''}}{{item.countLabel}}</text>
+          </view>
+          <text class="expense-group-total">{{item.totalDisplay}}</text>
+        </view>
+
+        <view
+          class="record-card card finance-surface expense-record-card tappable-record {{highlightRecordId === item.id ? 'highlight' : ''}}"
+          wx:for="{{item.items}}"
+          wx:key="id"
+          data-segment="expense"
+          data-id="{{item.id}}"
+          bindtap="onRecordTap"
+        >
+          <view class="record-row">
+            <text class="record-title">{{item.category}}</text>
+            <text class="record-amount">{{item.amountDisplay}}</text>
+          </view>
+          <view class="record-row meta">
+            <text class="record-meta">{{item.ownerLabel}}</text>
+            <text class="record-meta">{{item.dateLabel}}</text>
+          </view>
+          <text class="record-note" wx:if="{{item.note}}">{{item.note}}</text>
+        </view>
+      </view>
+    </view>
+
+    <view wx:if="{{activeSegment === 'todo'}}">
+      <view class="section-head neutral-head">
+        <view>
+          <text class="section-title neutral-title">{{todoSectionTitle}}</text>
+        </view>
+        <view class="section-actions">
+          <text class="section-count">{{todoSectionCount}}</text>
+          <view class="section-button" data-segment="todo" bindtap="onAddRecordTap">新增待办</view>
+        </view>
+      </view>
+
+      <view class="filter-row todo-filter-row">
+        <view
+          class="filter-chip subtle {{todoFilterPreset === item.value ? 'active' : ''}}"
+          wx:for="{{todoFilterOptions}}"
+          wx:key="value"
+          data-value="{{item.value}}"
+          bindtap="onTodoFilterTap"
+        >
+          {{item.label}}
+        </view>
+      </view>
+
+      <view class="record-empty card" wx:if="{{todoVisibleRecords.length === 0}}">
+        <text class="record-empty-text">{{todoEmptyText}}</text>
+      </view>
+
+      <view
+        class="record-card card tappable-record {{highlightRecordId === item.id ? 'highlight' : ''}}"
+        wx:for="{{todoVisibleRecords}}"
+        wx:key="id"
+        data-segment="todo"
+        data-id="{{item.id}}"
+        bindtap="onRecordTap"
+      >
+        <view class="record-row">
+          <text class="record-title">{{item.title}}</text>
+          <view class="todo-toggle {{item.status === 'completed' ? 'done' : ''}}" data-id="{{item.id}}" catchtap="onToggleTodo">
+            {{item.status === 'completed' ? '已完成' : '设为完成'}}
+          </view>
+        </view>
+        <view class="record-row meta">
+          <text class="record-meta">{{item.assigneeLabel}}</text>
+          <text class="record-meta">{{item.dueLabel}}</text>
+        </view>
+        <text class="record-note" wx:if="{{item.note}}">{{item.note}}</text>
+      </view>
+    </view>
+
+    <view wx:if="{{activeSegment === 'anniversary'}}">
+      <view class="section-head relationship-head">
+        <view>
+          <text class="section-title relationship-title">纪念日列表</text>
+          <text class="section-caption">按日期自动推算</text>
+        </view>
+        <view class="section-actions">
+          <text class="section-count">{{records.anniversaries.length}} 个</text>
+          <view class="section-button" data-segment="anniversary" bindtap="onAddRecordTap">新增纪念日</view>
+        </view>
+      </view>
+
+      <view class="record-empty card" wx:if="{{records.anniversaries.length === 0}}">
+        <text class="record-empty-text">还没有纪念日，先加一个。</text>
+      </view>
+
+      <view
+        class="record-card card relationship-surface anniversary-card tappable-record {{highlightRecordId === item.id ? 'highlight' : ''}}"
+        wx:for="{{records.anniversaries}}"
+        wx:key="id"
+        data-segment="anniversary"
+        data-id="{{item.id}}"
+        bindtap="onRecordTap"
+      >
+        <view class="record-row anniversary-top">
+          <text class="record-title anniversary-title">{{item.title}}</text>
+          <text class="record-amount">{{item.daysLeftLabel}}</text>
+        </view>
+        <view class="record-row meta anniversary-meta">
+          <text class="record-meta">{{item.dateLabel}}</text>
+          <text class="record-meta">{{item.linkedTodoLabel}}</text>
+        </view>
+      </view>
+    </view>
+
+    <view wx:if="{{activeSegment === 'workout'}}">
+      <view class="section-head motion-head">
+        <view>
+          <text class="section-title motion-title">运动记录</text>
+          <text class="section-caption">{{workoutSectionCaption}}</text>
+        </view>
+        <view class="section-actions">
+          <text class="section-count">{{workoutSectionCount}}</text>
+          <view class="section-button" data-segment="workout" bindtap="onAddRecordTap">新增运动</view>
+        </view>
+      </view>
+
+      <view class="step-summary-strip motion-surface soft">
+        <view class="step-summary-main">
+          <view class="step-summary-copy">
+            <text class="step-summary-title">{{stepSummary.label}}</text>
+            <text class="step-summary-focus">{{stepSummary.focusText}}</text>
+          </view>
+          <view
+            class="step-summary-button {{stepSummary.authorizationState === 'authorized' ? 'ready' : ''}}"
+            wx:if="{{stepSummary.canSync}}"
+            bindtap="onWorkoutStepSyncTap"
+          >
+            {{stepSummary.actionLabel}}
+          </view>
+        </view>
+        <view class="step-summary-grid">
+          <view class="step-summary-member-card mine">
+            <text class="step-summary-member-name">{{stepSummary.my.label}}</text>
+            <view class="step-summary-stat">
+              <text class="step-summary-stat-label">今天</text>
+              <text class="step-summary-stat-value">{{stepSummary.my.todayDisplay}}</text>
+            </view>
+            <view class="step-summary-stat compact">
+              <text class="step-summary-stat-label">本周</text>
+              <text class="step-summary-stat-subvalue">{{stepSummary.my.weekDisplay}}</text>
+            </view>
+          </view>
+          <view class="step-summary-member-card partner">
+            <text class="step-summary-member-name">{{stepSummary.partner.label}}</text>
+            <view class="step-summary-stat">
+              <text class="step-summary-stat-label">今天</text>
+              <text class="step-summary-stat-value">{{stepSummary.partner.todayDisplay}}</text>
+            </view>
+            <view class="step-summary-stat compact">
+              <text class="step-summary-stat-label">本周</text>
+              <text class="step-summary-stat-subvalue">{{stepSummary.partner.weekDisplay}}</text>
+            </view>
+          </view>
+        </view>
+        <view class="step-trend-section" wx:if="{{stepSummary.trend && stepSummary.trend.length}}">
+          <view class="step-trend-head">
+            <text class="step-trend-kicker">最近 7 天</text>
+            <view class="step-trend-head-meta">
+              <view class="step-trend-legend">
+                <view class="step-trend-legend-item">
+                  <view class="step-trend-legend-dot me"></view>
+                  <text>{{stepSummary.my.label}}</text>
+                </view>
+                <view class="step-trend-legend-item">
+                  <view class="step-trend-legend-dot partner"></view>
+                  <text>{{stepSummary.partner.label}}</text>
+                </view>
+              </view>
+              <text class="step-trend-range" wx:if="{{stepSummary.rangeHint}}">{{stepSummary.rangeHint}}</text>
+            </view>
+          </view>
+          <view class="step-trend-row">
+          <view class="step-trend-item {{item.hasAnyValue ? 'has-value' : 'is-empty'}}" wx:for="{{stepSummary.trend}}" wx:key="dateKey">
+            <view class="step-trend-shell {{item.hasAnyValue ? 'has-data' : 'is-empty'}}">
+              <view class="step-trend-baseline"></view>
+              <view class="step-trend-columns">
+                <view class="step-trend-track me">
+                  <view class="step-trend-bar me" wx:if="{{item.myBarHeight > 0}}" style="height: {{item.myBarHeight}}rpx;"></view>
+                </view>
+                <view class="step-trend-track partner">
+                  <view class="step-trend-bar partner" wx:if="{{item.partnerBarHeight > 0}}" style="height: {{item.partnerBarHeight}}rpx;"></view>
+                </view>
+              </view>
+            </view>
+            <text class="step-trend-label">{{item.label}}</text>
+          </view>
+        </view>
+        </view>
+        <view class="step-summary-foot">
+          <text>{{stepSummary.statusLabel}}</text>
+          <text>{{stepSummary.detailText}}</text>
+        </view>
+      </view>
+
+      <view class="filter-row workout-filter-row">
+        <view
+          class="filter-chip subtle {{workoutFilterPreset === item.value ? 'active' : ''}}"
+          wx:for="{{workoutFilterOptions}}"
+          wx:key="value"
+          data-value="{{item.value}}"
+          bindtap="onWorkoutFilterTap"
+        >
+          {{item.label}}
+        </view>
+      </view>
+
+      <view class="record-empty card" wx:if="{{workoutGroups.length === 0}}">
+        <text class="record-empty-text">{{workoutEmptyText}}</text>
+      </view>
+
+      <view class="expense-group" wx:for="{{workoutGroups}}" wx:key="key">
+        <view class="expense-group-head">
+          <view>
+            <text class="expense-group-title">{{item.label}}</text>
+            <text class="expense-group-meta">{{item.metaLabel ? item.metaLabel + ' · ' : ''}}{{item.countLabel}}</text>
+          </view>
+          <text class="expense-group-total">{{item.totalDurationLabel}}</text>
+        </view>
+
+        <view
+          class="record-card card motion-surface soft tappable-record workout-record-card {{highlightRecordId === item.id ? 'highlight' : ''}}"
+          wx:for="{{item.items}}"
+          wx:key="id"
+          data-segment="workout"
+          data-id="{{item.id}}"
+          bindtap="onRecordTap"
+        >
+          <view class="record-row">
+            <text class="record-title">{{item.typeLabel}}</text>
+            <text class="record-amount">{{item.durationLabel}}</text>
+          </view>
+          <view class="record-row meta">
+            <text class="record-meta">{{item.userLabel}}</text>
+            <text class="record-meta">{{item.dateLabel}}</text>
+          </view>
+          <text class="record-note" wx:if="{{item.note}}">{{item.note}}</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="content-spacer"></view>
+  </scroll-view>
+
+  <view class="editor-mask" wx:if="{{editorVisible}}" bindtap="onEditorMaskTap">
+    <view class="editor-sheet card {{editorSegment}}" catchtap="onEditorPanelTap">
+      <view class="editor-head">
+        <view>
+          <text class="editor-title">{{editorTitle}}</text>
+          <text class="editor-subtitle">{{editorMode === 'edit' ? '保存后会同步更新' : '保存后加入记录'}}</text>
+        </view>
+        <view class="editor-close" bindtap="onEditorCloseTap">收起</view>
+      </view>
+
+      <view wx:if="{{editorSegment === 'expense'}}">
+        <view class="amount-shell">
+          <text class="amount-prefix">￥</text>
+          <input class="amount-input" type="digit" placeholder="0.00" value="{{expenseForm.amount}}" cursor-spacing="180" bindinput="onExpenseAmountInput" />
+        </view>
+
+        <view class="field-group">
+          <text class="field-label">分类</text>
+          <view class="choice-row">
+            <view
+              class="choice-pill {{expenseForm.categoryKey === item.key ? 'active' : ''}}"
+              wx:for="{{expenseCategories}}"
+              wx:key="key"
+              data-value="{{item.key}}"
+              bindtap="onExpenseCategoryTap"
+            >
+              {{item.label}}
+            </view>
+          </view>
+        </view>
+
+        <view class="field-group">
+          <text class="field-label">归属</text>
+          <view class="choice-row">
+            <view
+              class="choice-pill {{expenseForm.ownerChoice === item.value ? 'active strong' : ''}}"
+              wx:for="{{ownerOptions}}"
+              wx:key="value"
+              data-value="{{item.value}}"
+              bindtap="onExpenseOwnerTap"
+            >
+              {{item.label}}
+            </view>
+          </view>
+        </view>
+
+        <view class="field-group">
+          <text class="field-label">日期</text>
+          <picker mode="date" value="{{expenseForm.occurredOn}}" bindchange="onExpenseDateChange">
+            <view class="date-pill active">{{expenseForm.occurredOn}}</view>
+          </picker>
+        </view>
+
+        <view class="field-group">
+          <text class="field-label">备注</text>
+          <textarea class="textarea-input short" auto-height cursor-spacing="180" maxlength="80" placeholder="例如 火锅晚餐、周末买菜" value="{{expenseForm.note}}" bindinput="onExpenseNoteInput"></textarea>
+        </view>
+      </view>
+
+      <view wx:if="{{editorSegment === 'todo'}}">
+        <view class="field-group compact-top">
+          <text class="field-label">待办标题</text>
+          <input class="text-input" maxlength="40" cursor-spacing="180" placeholder="例如 订清明出行酒店" value="{{todoForm.title}}" bindinput="onTodoTitleInput" />
+        </view>
+
+        <view class="field-group">
+          <text class="field-label">负责人</text>
+          <view class="choice-row">
+            <view
+              class="choice-pill {{todoForm.assigneeChoice === item.value ? 'active strong' : ''}}"
+              wx:for="{{assigneeOptions}}"
+              wx:key="value"
+              data-value="{{item.value}}"
+              bindtap="onTodoAssigneeTap"
+            >
+              {{item.label}}
+            </view>
+          </view>
+        </view>
+
+        <view class="field-group">
+          <text class="field-label">截止日期</text>
+          <view class="date-row">
+            <picker mode="date" value="{{todoForm.dueAt ? todoForm.dueAt : todayDateKey}}" bindchange="onTodoDateChange">
+              <view class="date-pill {{todoForm.dueAt ? 'active' : ''}}">{{todoForm.dueAt ? todoForm.dueAt : '选择日期'}}</view>
+            </picker>
+            <view class="date-pill subtle" bindtap="onTodoClearDueTap">不设日期</view>
+          </view>
+        </view>
+
+        <view class="field-group">
+          <text class="field-label">补充说明</text>
+          <textarea class="textarea-input short" auto-height cursor-spacing="180" maxlength="80" placeholder="例如 优先定可退款房型" value="{{todoForm.note}}" bindinput="onTodoNoteInput"></textarea>
+        </view>
+      </view>
+
+      <view wx:if="{{editorSegment === 'anniversary'}}">
+        <view class="field-group compact-top">
+          <text class="field-label">纪念方式</text>
+          <view class="choice-row">
+            <view
+              class="choice-pill {{anniversaryForm.kind === item.value ? 'active strong' : ''}}"
+              wx:for="{{anniversaryTypeOptions}}"
+              wx:key="value"
+              data-value="{{item.value}}"
+              bindtap="onAnniversaryTypeTap"
+            >
+              {{item.label}}
+            </view>
+          </view>
+        </view>
+
+        <view class="field-group">
+          <text class="field-label">{{anniversaryForm.kind === 'relationship' ? '纪念对象' : '日子名称'}}</text>
+          <view class="choice-row" wx:if="{{anniversaryForm.kind === 'relationship'}}">
+            <view
+              class="choice-pill {{anniversaryForm.title === item.value ? 'active' : ''}}"
+              wx:for="{{relationshipMilestoneOptions}}"
+              wx:key="value"
+              data-value="{{item.value}}"
+              bindtap="onAnniversaryPresetTap"
+            >
+              {{item.label}}
+            </view>
+          </view>
+          <input class="text-input" maxlength="40" cursor-spacing="180" placeholder="{{anniversaryForm.kind === 'relationship' ? '例如 在一起 / 领证 / 结婚' : '例如 第一次一起看海' }}" value="{{anniversaryForm.title}}" bindinput="onAnniversaryTitleInput" />
+        </view>
+
+        <view class="field-group">
+          <text class="field-label">{{anniversaryForm.kind === 'relationship' ? '开始日期' : '发生日期'}}</text>
+          <picker mode="date" value="{{anniversaryForm.date}}" bindchange="onAnniversaryDateChange">
+            <view class="date-pill active">{{anniversaryForm.date}}</view>
+          </picker>
+        </view>
+
+        <view class="field-group">
+          <text class="field-label">补充说明</text>
+          <textarea class="textarea-input short" auto-height cursor-spacing="180" maxlength="80" placeholder="{{anniversaryForm.kind === 'relationship' ? '例如 今年想提前订一家正式一点的餐厅' : '例如 想把这一天固定留出来' }}" value="{{anniversaryForm.note}}" bindinput="onAnniversaryNoteInput"></textarea>
+        </view>
+
+        <view class="field-group">
+          <text class="field-label">准备项</text>
+          <textarea class="textarea-input short prep-todo-input" auto-height cursor-spacing="180" maxlength="40" placeholder="例如 订纪念日晚餐" value="{{anniversaryForm.prepTodoTitle}}" bindinput="onAnniversaryPrepTodoInput"></textarea>
+        </view>
+      </view>
+
+      <view wx:if="{{editorSegment === 'workout'}}">
+        <view class="field-group compact-top">
+          <text class="field-label">运动类型</text>
+          <view class="choice-row">
+            <view
+              class="choice-pill {{workoutForm.typeKey === item.key ? 'active strong' : ''}}"
+              wx:for="{{workoutTypes}}"
+              wx:key="key"
+              data-value="{{item.key}}"
+              bindtap="onWorkoutTypeTap"
+            >
+              {{item.label}}
+            </view>
+          </view>
+        </view>
+
+        <view class="field-group">
+          <text class="field-label">时长</text>
+          <view class="amount-shell compact">
+            <input class="duration-input" type="number" placeholder="例如 45" value="{{workoutForm.durationMinutes}}" cursor-spacing="180" bindinput="onWorkoutDurationInput" />
+            <text class="amount-suffix">分钟</text>
+          </view>
+        </view>
+
+        <view class="field-group">
+          <text class="field-label">日期</text>
+          <picker mode="date" value="{{workoutForm.occurredOn}}" bindchange="onWorkoutDateChange">
+            <view class="date-pill active">{{workoutForm.occurredOn}}</view>
+          </picker>
+        </view>
+
+        <view class="field-group">
+          <text class="field-label">备注</text>
+          <textarea class="textarea-input short" auto-height cursor-spacing="180" maxlength="80" placeholder="例如 晚上跑了 5 公里，状态不错" value="{{workoutForm.note}}" bindinput="onWorkoutNoteInput"></textarea>
+        </view>
+      </view>
+
+      <view class="editor-actions">
+        <button class="submit-button" bindtap="onEditorSubmit">{{editorMode === 'edit' ? '保存修改' : '保存记录'}}</button>
+        <button class="danger-button" wx:if="{{editorMode === 'edit'}}" bindtap="onEditorDeleteTap">删除这条记录</button>
+      </view>
+    </view>
+  </view>
+</view>

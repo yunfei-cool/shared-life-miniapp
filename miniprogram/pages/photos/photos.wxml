@@ -1,0 +1,213 @@
+<!-- photos.wxml - 照片页面 -->
+<view class="photos-container">
+  <!-- 顶部状态栏 -->
+  <view class="status-bar">
+    <view class="page-title">照片</view>
+    <view class="action-buttons" wx:if="{{hasUserInfo && hasCouple}}">
+      <view
+        class="action-btn {{editMode ? 'active' : ''}}"
+        bindtap="toggleEditMode"
+      >
+        {{editMode ? '完成' : '编辑'}}
+      </view>
+    </view>
+  </view>
+
+  <!-- 筛选控件 -->
+  <view class="filter-bar" wx:if="{{hasUserInfo && hasCouple}}">
+    <scroll-view class="filter-scroll" scroll-x>
+      <view class="filter-items">
+        <view
+          class="filter-item {{filterType === 'all' ? 'active' : ''}}"
+          data-type="all"
+          bindtap="onFilterTap"
+        >
+          全部
+        </view>
+        <view
+          class="filter-item {{filterType === 'me' ? 'active' : ''}}"
+          data-type="me"
+          bindtap="onFilterTap"
+        >
+          我的
+        </view>
+        <view
+          class="filter-item {{filterType === 'partner' ? 'active' : ''}}"
+          data-type="partner"
+          bindtap="onFilterTap"
+        >
+          伴侣
+        </view>
+        <view
+          class="filter-item {{filterType === 'recent' ? 'active' : ''}}"
+          data-type="recent"
+          bindtap="onFilterTap"
+        >
+          最近
+        </view>
+
+        <!-- 相册筛选 -->
+        <view
+          class="filter-item {{selectedAlbum === 'travel' ? 'active' : ''}}"
+          data-album="travel"
+          bindtap="onAlbumTap"
+        >
+          旅行
+        </view>
+        <view
+          class="filter-item {{selectedAlbum === 'daily' ? 'active' : ''}}"
+          data-album="daily"
+          bindtap="onAlbumTap"
+        >
+          日常
+        </view>
+        <view
+          class="filter-item {{selectedAlbum === 'entertainment' ? 'active' : ''}}"
+          data-album="entertainment"
+          bindtap="onAlbumTap"
+        >
+          娱乐
+        </view>
+      </view>
+    </scroll-view>
+  </view>
+
+  <!-- 上传进度 -->
+  <view class="upload-progress" wx:if="{{isUploading}}">
+    <view class="progress-bar">
+      <view class="progress-fill" style="width: {{uploadProgress}}%"></view>
+    </view>
+    <text class="progress-text">上传中... {{uploadProgress}}%</text>
+  </view>
+
+  <!-- 加载状态 -->
+  <view class="loading-container" wx:if="{{isLoading}}">
+    <view class="loading-spinner"></view>
+    <text class="loading-text">加载中...</text>
+  </view>
+
+  <!-- 空状态（未登录或没有数据） -->
+  <view class="empty-state-container" wx:if="{{!hasUserInfo || !hasCouple || photos.length === 0}}">
+    <view class="empty-state-illustration">📷</view>
+    <view class="empty-state-content">
+      <text class="empty-state-title" wx:if="{{!hasUserInfo}}">请先登录</text>
+      <text class="empty-state-title" wx:if="{{hasUserInfo && !hasCouple}}">还没有情侣空间</text>
+      <text class="empty-state-title" wx:if="{{hasUserInfo && hasCouple && photos.length === 0}}">还没有照片</text>
+
+      <text class="empty-state-description" wx:if="{{!hasUserInfo}}">
+        登录后查看你们的照片
+      </text>
+      <text class="empty-state-description" wx:if="{{hasUserInfo && !hasCouple}}">
+        创建情侣空间，开始分享照片
+      </text>
+      <text class="empty-state-description" wx:if="{{hasUserInfo && hasCouple && photos.length === 0}}">
+        上传第一张照片，记录美好时光
+      </text>
+
+      <view class="empty-state-actions">
+        <button
+          class="btn-primary"
+          wx:if="{{!hasUserInfo}}"
+          bindtap="onLoginTap"
+        >
+          立即登录
+        </button>
+        <button
+          class="btn-primary"
+          wx:if="{{hasUserInfo && !hasCouple}}"
+          bindtap="onCreateCoupleTap"
+        >
+          创建情侣空间
+        </button>
+        <button
+          class="btn-primary"
+          wx:if="{{hasUserInfo && hasCouple && photos.length === 0}}"
+          bindtap="onUploadTap"
+        >
+          上传照片
+        </button>
+      </view>
+    </view>
+  </view>
+
+  <!-- 照片网格 -->
+  <scroll-view
+    class="photos-content"
+    wx:if="{{hasUserInfo && hasCouple && !isLoading && photos.length > 0}}"
+    scroll-y
+    refresher-enabled="{{true}}"
+    bindrefresherrefresh="onPullDownRefresh"
+    refresher-triggered="{{isRefreshing}}"
+  >
+    <!-- 编辑模式工具栏 -->
+    <view class="edit-toolbar" wx:if="{{editMode}}">
+      <text class="edit-count">已选择 {{selectedPhotos.length}} 张</text>
+      <view class="edit-actions">
+        <view class="edit-action delete" bindtap="deleteSelectedPhotos">
+          <text class="icon">🗑️</text>
+          <text>删除</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 照片网格 -->
+    <view class="photos-grid">
+      <view
+        class="photo-item {{editMode ? 'edit-mode' : ''}} {{selectedPhotos.indexOf(item.id) > -1 ? 'selected' : ''}}"
+        wx:for="{{photos}}"
+        wx:key="id"
+        data-index="{{index}}"
+        data-id="{{item.id}}"
+        bindtap="{{editMode ? 'onPhotoSelect' : 'onPhotoTap'}}"
+      >
+        <!-- 编辑模式选择框 -->
+        <view class="photo-selector" wx:if="{{editMode}}">
+          <view class="selector-checkbox {{selectedPhotos.indexOf(item.id) > -1 ? 'checked' : ''}}">
+            <text class="checkmark">✓</text>
+          </view>
+        </view>
+
+        <!-- 照片缩略图 -->
+        <image class="photo-thumbnail" src="{{item.thumbnail}}" mode="aspectFill"></image>
+
+        <!-- 照片信息 -->
+        <view class="photo-info">
+          <view class="photo-header">
+            <text class="photo-title">{{item.title}}</text>
+            <view class="photo-meta">
+              <text class="photo-uploader {{item.uploadedBy}}">
+                {{item.uploadedBy === 'me' ? '我' : item.uploadedBy === 'partner' ? '伴侣' : '两人'}}
+              </text>
+              <text class="photo-date">{{item.date}}</text>
+            </view>
+          </view>
+
+          <!-- 互动按钮 -->
+          <view class="photo-actions" wx:if="{{!editMode}}">
+            <view class="action-item" data-id="{{item.id}}" bindtap="onLikeTap" catchtap>
+              <text class="icon">❤️</text>
+              <text class="count">{{item.likes}}</text>
+            </view>
+            <view class="action-item">
+              <text class="icon">💬</text>
+              <text class="count">{{item.comments}}</text>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 空白区域 -->
+    <view class="content-spacer"></view>
+  </scroll-view>
+
+  <!-- 上传浮动按钮 -->
+  <view
+    class="fab-container"
+    wx:if="{{hasUserInfo && hasCouple && !isLoading && photos.length > 0}}"
+  >
+    <button class="fab-button" bindtap="onUploadTap">
+      <text class="fab-icon">+</text>
+    </button>
+  </view>
+</view>

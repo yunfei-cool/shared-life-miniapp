@@ -1,0 +1,69 @@
+<view class="budget-container">
+  <view class="top-bar">
+    <view>
+      <text class="page-title">预算</text>
+      <text class="page-subtitle">各自管自己的预算，也把共同生活算清楚</text>
+    </view>
+  </view>
+
+  <view class="loading-container" wx:if="{{isLoading}}">
+    <view class="loading-spinner"></view>
+    <text class="loading-text">正在加载预算...</text>
+  </view>
+
+  <view class="empty-state card" wx:elif="{{pairState !== 'paired'}}">
+    <text class="state-title">先连接共享空间</text>
+    <text class="state-description">连好之后，再一起把这月的生活预算对齐。</text>
+  </view>
+
+  <scroll-view class="budget-scroll" wx:else scroll-y>
+    <view class="summary-card card">
+      <view class="summary-label-row">
+        <text class="summary-label">本月总预算</text>
+      </view>
+      <view class="summary-main">
+        <text class="summary-spent">{{overview.spentDisplay}}</text>
+        <text class="summary-total">/ {{overview.totalBudgetDisplay}}</text>
+      </view>
+      <text class="summary-detail">{{overview.remainingDisplay}}</text>
+      <view class="progress-track">
+        <view class="progress-fill" style="width: {{overview.progressWidth}}%;"></view>
+      </view>
+      <view class="summary-meta">
+        <text class="summary-progress">{{overview.progressLabel}}</text>
+        <text class="summary-focus">{{overview.focusText}}</text>
+      </view>
+      <text class="shared-rule">{{overview.sharedRuleText}}</text>
+    </view>
+
+    <view class="editor-card card">
+      <view class="editor-head">
+        <text class="section-title">两个人的本月预算</text>
+        <text class="editor-note">共同支出自动平摊</text>
+      </view>
+      <view class="member-row" wx:for="{{overview.memberSummaries}}" wx:key="userId">
+        <view class="member-copy">
+          <text class="member-name">{{item.label}}</text>
+          <text class="member-meta">本月已花 {{item.spentDisplay}} · {{item.remainingDisplay}}</text>
+        </view>
+        <view class="member-input-shell">
+          <text class="currency-prefix">￥</text>
+          <input
+            class="member-input"
+            type="digit"
+            placeholder="0"
+            data-user-id="{{item.userId}}"
+            value="{{memberBudgetInputs[item.userId]}}"
+            bindinput="onMemberBudgetInput"
+          />
+        </view>
+      </view>
+    </view>
+
+    <view class="actions">
+      <button class="save-button" bindtap="onSaveTap">保存预算</button>
+    </view>
+
+    <view class="content-spacer"></view>
+  </scroll-view>
+</view>

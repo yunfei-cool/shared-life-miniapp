@@ -1,0 +1,56 @@
+{
+  "pages": [
+    "pages/home/home",
+    "pages/records/records",
+    "pages/reports/reports",
+    "pages/profile/profile",
+    "pages/goals/goals",
+    "pages/budget/budget",
+    "pages/index/index"
+  ],
+  "window": {
+    "backgroundColor": "#F9F9F9",
+    "backgroundTextStyle": "light",
+    "navigationBarBackgroundColor": "#FFFFFF",
+    "navigationBarTitleText": "共享生活",
+    "navigationBarTextStyle": "black",
+    "enablePullDownRefresh": true
+  },
+  "tabBar": {
+    "color": "#8A7B72",
+    "selectedColor": "#8A4D22",
+    "backgroundColor": "#FFFFFF",
+    "borderStyle": "white",
+    "list": [
+      {
+        "pagePath": "pages/home/home",
+        "text": "首页",
+        "iconPath": "images/tab-home.png",
+        "selectedIconPath": "images/tab-home-active.png"
+      },
+      {
+        "pagePath": "pages/records/records",
+        "text": "记录",
+        "iconPath": "images/tab-records.png",
+        "selectedIconPath": "images/tab-records-active.png"
+      },
+      {
+        "pagePath": "pages/reports/reports",
+        "text": "报告",
+        "iconPath": "images/tab-reports.png",
+        "selectedIconPath": "images/tab-reports-active.png"
+      },
+      {
+        "pagePath": "pages/profile/profile",
+        "text": "我们",
+        "iconPath": "images/tab-profile.png",
+        "selectedIconPath": "images/tab-profile-active.png"
+      }
+    ]
+  },
+  "sitemapLocation": "sitemap.json",
+  "style": "v2",
+  "useExtendedLib": {
+    "weui": true
+  }
+}

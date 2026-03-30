@@ -1,0 +1,302 @@
+<view class="reports-container">
+  <view class="top-bar">
+    <view>
+      <text class="page-title">报告</text>
+      <text class="page-subtitle">把最近的花费、预算和生活节奏看清楚</text>
+    </view>
+  </view>
+
+  <view class="loading-container" wx:if="{{isLoading}}">
+    <view class="loading-spinner"></view>
+    <text class="loading-text">正在加载报告...</text>
+  </view>
+
+  <view class="empty-state card" wx:elif="{{pairState !== 'paired'}}">
+    <image class="empty-art" src="../../images/shared-space-art.svg" mode="aspectFit"></image>
+    <text class="state-title">先连接共享空间</text>
+    <text class="state-description">
+      连好之后，周报和月报会开始把最近的花费和节奏整理出来。
+    </text>
+    <button class="primary-button" bindtap="onGoSetupTap">去「我们」设置</button>
+  </view>
+
+  <scroll-view class="reports-scroll" wx:else scroll-y>
+    <view class="type-switch">
+      <view class="type-item weekly {{activeType === 'weekly' ? 'is-active' : ''}}" data-type="weekly" bindtap="onTypeTap">周报</view>
+      <view class="type-item monthly {{activeType === 'monthly' ? 'is-active' : ''}}" data-type="monthly" bindtap="onTypeTap">月报</view>
+    </view>
+
+    <view class="report-cover card" wx:if="{{currentReport}}">
+      <view class="cover-top">
+        <view class="cover-copy">
+          <view class="cover-meta-row">
+            <text class="cover-kicker">{{activeType === 'weekly' ? '本周复盘' : '本月复盘'}}</text>
+            <text class="status-tag {{currentReport.statusTone}}">{{currentReport.statusLabel}}</text>
+          </view>
+          <text class="cover-period">{{currentReport.periodLabel}}</text>
+          <text class="cover-headline">{{currentReport.headline}}</text>
+        </view>
+        <image class="cover-art" src="../../images/report-cover-art.svg" mode="aspectFit"></image>
+      </view>
+
+      <view class="metrics-row cover-metrics">
+        <view class="metric-block">
+          <text class="metric-label">总支出</text>
+          <text class="metric-value">{{currentReport.totalDisplay}}</text>
+        </view>
+        <view class="metric-block">
+          <text class="metric-label">环比变化</text>
+          <text class="metric-value small">{{currentReport.compareDisplay}}</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="analysis-card card finance-analysis-card" wx:if="{{currentReport}}">
+      <view class="analysis-head">
+        <view>
+          <text class="subsection-title">时间对比</text>
+        </view>
+        <text class="trend-period">{{currentReport.compareLabel}}</text>
+      </view>
+      <view class="trend-legend">
+        <view class="trend-legend-item">
+          <view class="trend-legend-dot previous"></view>
+          <text class="trend-legend-label">上个周期</text>
+        </view>
+        <view class="trend-legend-item">
+          <view class="trend-legend-dot current"></view>
+          <text class="trend-legend-label">当前周期</text>
+        </view>
+      </view>
+      <view class="trend-chart trend-chart-{{activeType}}">
+        <view class="trend-column" wx:for="{{currentReport.trendSeries}}" wx:key="label">
+          <view class="trend-value-pair">
+            <view class="trend-value-slot previous">
+              <text class="trend-value previous" wx:if="{{item.previousHasValue}}">{{item.previousLabel}}</text>
+            </view>
+            <view class="trend-value-slot current">
+              <text class="trend-value current {{item.isLatest ? 'is-latest' : ''}}" wx:if="{{item.currentHasValue}}">{{item.currentLabel}}</text>
+            </view>
+          </view>
+          <view class="trend-bars {{item.hasValue ? 'has-value' : 'is-empty'}}">
+            <view class="trend-bar-shell previous">
+              <view class="trend-bar previous {{item.previousHasValue ? 'has-value' : 'is-empty'}}" style="height: {{item.previousBarHeight}}rpx;"></view>
+            </view>
+            <view class="trend-bar-shell current">
+              <view class="trend-bar current {{item.currentHasValue ? 'has-value' : 'is-empty'}} {{item.currentHasValue && item.isLatest ? 'is-latest' : ''}}" style="height: {{item.currentBarHeight}}rpx;"></view>
+            </view>
+          </view>
+          <text class="trend-column-label">{{item.label}}</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="analysis-card card finance-analysis-card" wx:if="{{currentReport}}">
+      <view class="visual-head">
+        <view>
+          <text class="subsection-title">支出结构</text>
+        </view>
+        <view class="visual-switch">
+          <view class="visual-switch-item {{visualMode === 'category' ? 'is-active' : ''}}" data-mode="category" bindtap="onVisualModeTap">分类</view>
+          <view class="visual-switch-item {{visualMode === 'owner' ? 'is-active' : ''}}" data-mode="owner" bindtap="onVisualModeTap">归属</view>
+        </view>
+      </view>
+
+      <view class="donut-layout compact">
+        <view class="donut-shell">
+          <view class="donut-ring" style="{{visualStyle}}">
+            <view class="donut-hole">
+              <text class="donut-total {{selectedVisualColor ? 'accent' : ''}}" style="color: {{selectedVisualColor ? selectedVisualColor : '#241d1a'}};">{{selectedVisualTitle}}</text>
+              <text class="donut-label strong">{{selectedVisualValue}}</text>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <view class="chip-list">
+        <view
+          class="chip-item {{selectedVisualKey === (item.key || item.name) ? 'active' : ''}}"
+          wx:for="{{visualItems}}"
+          wx:key="key"
+          data-key="{{item.key || item.name}}"
+          data-name="{{item.name}}"
+          bindtap="onVisualItemTap"
+        >
+          <view class="chip-dot" style="background: {{item.color}};"></view>
+          <text class="chip-name">{{item.name}}</text>
+        </view>
+      </view>
+
+      <view class="visual-detail-card tappable-card" wx:if="{{selectedVisualKey}}" bindtap="onVisualDetailTap">
+        <text class="visual-detail-title">{{selectedVisualValue}}</text>
+        <text class="visual-detail-value">{{selectedVisualTitle}} · {{selectedVisualMeta}}</text>
+        <text class="visual-detail-link">去看这类记录</text>
+      </view>
+    </view>
+
+    <view class="analysis-card card budget-analysis-card" wx:if="{{currentReport}}">
+      <view class="section-head">
+        <text class="subsection-title">预算进度</text>
+        <text class="trend-period" bindtap="onBudgetTap">去预算</text>
+      </view>
+
+      <view wx:if="{{currentReport.budgetSummary && currentReport.budgetSummary.hasBudget}}">
+        <view class="metrics-row">
+          <view class="metric-block">
+            <text class="metric-label">已花 / 总预算</text>
+            <text class="metric-value small">{{currentReport.budgetSummary.spentDisplay}}</text>
+            <text class="budget-metric-sub">{{currentReport.budgetSummary.totalBudgetDisplay}}</text>
+          </view>
+          <view class="metric-block">
+            <text class="metric-label">{{currentReport.budgetSummary.periodSpentLabel}}</text>
+            <text class="metric-value small">{{currentReport.budgetSummary.periodSpentDisplay}}</text>
+            <text class="budget-metric-sub">{{currentReport.budgetSummary.remainingDisplay}}</text>
+          </view>
+        </view>
+
+        <view class="budget-progress-track">
+          <view class="budget-progress-fill" style="width: {{currentReport.budgetSummary.progressWidth}}%;"></view>
+        </view>
+
+        <text class="budget-inline-note">{{currentReport.budgetSummary.sharedRuleText}}</text>
+
+        <view class="budget-list">
+          <view
+            class="budget-row"
+            wx:for="{{currentReport.budgetSummary.memberSummaries}}"
+            wx:key="label"
+          >
+            <view class="budget-row-head">
+              <text class="budget-row-name">{{item.label}}</text>
+              <text class="budget-row-value">{{item.spentDisplay}} / {{item.budgetDisplay}}</text>
+            </view>
+            <view class="budget-row-track">
+              <view class="budget-row-fill {{item.statusTone}}" style="width: {{item.progressWidth}}%;"></view>
+            </view>
+            <text class="budget-row-meta">{{currentReport.budgetSummary.periodSpentLabel}} {{item.periodSpentDisplay}} · {{item.remainingDisplay}}</text>
+          </view>
+        </view>
+      </view>
+
+      <view class="empty-note" wx:else>
+        先去预算页设置两个人的本月预算，这里会开始显示进度。
+      </view>
+    </view>
+
+    <view class="analysis-card card mission-analysis-card tappable-card" wx:if="{{currentReport && currentReport.missionSummary && currentReport.missionSummary.visible}}" bindtap="onMissionSummaryTap">
+      <view class="section-head">
+        <text class="subsection-title">{{currentReport.missionSummary.sectionTitle}}</text>
+        <text class="trend-period">{{currentReport.missionSummary.actionLabel}}</text>
+      </view>
+
+      <view class="mission-summary-shell {{currentReport.missionSummary.tone}}">
+        <text class="mission-summary-label">{{currentReport.missionSummary.label}}</text>
+        <text class="mission-summary-title">{{currentReport.missionSummary.title}}</text>
+        <text class="mission-summary-detail">{{currentReport.missionSummary.detail}}</text>
+        <view class="mission-summary-meta">
+          <text class="mission-summary-progress">{{currentReport.missionSummary.progressLabel}}</text>
+          <text class="mission-summary-current" wx:if="{{currentReport.missionSummary.currentLabel}}">{{currentReport.missionSummary.currentLabel}}</text>
+          <text class="mission-summary-wager" wx:if="{{currentReport.missionSummary.wagerStatusLabel}}">{{currentReport.missionSummary.wagerStatusLabel}}</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="focus-card card finance-focus-card" wx:if="{{currentReport}}">
+      <view class="section-head">
+        <text class="section-title">本期重点</text>
+      </view>
+
+      <view class="subsection compact">
+        <text class="subsection-title minor">分类变化</text>
+        <view class="change-card tappable-card" wx:for="{{currentReport.categoryChanges}}" wx:key="name" data-name="{{item.name}}" bindtap="onChangeCardTap">
+          <view class="change-head">
+            <text class="change-name">{{item.name}}</text>
+            <text class="change-delta {{item.tone}}">{{item.deltaLabel}}</text>
+          </view>
+          <text class="change-detail">{{item.detail}}</text>
+          <text class="change-meta">这期 {{item.currentDisplay}} · 上期 {{item.previousDisplay}}</text>
+        </view>
+        <view class="empty-note" wx:if="{{!currentReport.categoryChanges.length}}">
+          这期分类变化不大。
+        </view>
+      </view>
+
+      <view class="subsection compact">
+        <text class="subsection-title minor">本期提醒</text>
+        <view class="alert-card {{item.tone}} tappable-card" wx:for="{{currentReport.alerts}}" wx:key="title" data-title="{{item.title}}" data-kind="{{item.kind || ''}}" bindtap="onAlertTap">
+          <text class="alert-title">{{item.title}}</text>
+          <text class="alert-detail">{{item.detail}}</text>
+        </view>
+        <view class="empty-note" wx:if="{{!currentReport.alerts.length}}">
+          这期整体比较平稳。
+        </view>
+      </view>
+    </view>
+
+    <view class="reflection-card card relationship-reflection-card" wx:if="{{currentReport}}">
+      <view class="section-head">
+        <text class="section-title">生活观察</text>
+      </view>
+
+      <view class="signal-grid">
+        <view class="signal-card neutral tappable-card" data-segment="todo" bindtap="onSignalTap">
+          <text class="signal-label">待办进度</text>
+          <text class="signal-value">{{currentReport.todoSummary}}</text>
+        </view>
+        <view class="signal-card relationship tappable-card" data-segment="anniversary" bindtap="onSignalTap">
+          <text class="signal-label">纪念日</text>
+          <text class="signal-value">{{currentReport.anniversarySummary}}</text>
+        </view>
+      </view>
+
+      <view class="summary-box reflection-summary">
+        <text class="summary-kicker">一句话结论</text>
+        <text class="summary-text">{{currentReport.aiSummary}}</text>
+      </view>
+
+      <view class="action-block">
+        <text class="subsection-title minor">接下来</text>
+        <view class="action-item" wx:for="{{currentReport.suggestions}}" wx:key="*this" wx:for-index="index">
+          <view class="action-index">{{index + 1}}</view>
+          <text class="action-text">{{item}}</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="analysis-card card workout-analysis-card" wx:if="{{currentReport}}">
+      <view class="section-head">
+        <text class="subsection-title">{{currentReport.workoutSummary.sectionTitle}}</text>
+        <text class="trend-period" bindtap="onWorkoutTap">去运动</text>
+      </view>
+
+      <view class="metrics-row">
+        <view class="metric-block">
+          <text class="metric-label">总次数</text>
+          <text class="metric-value small">{{currentReport.workoutSummary.totalCountDisplay}}</text>
+          <text class="budget-metric-sub">{{currentReport.workoutSummary.focusText}}</text>
+        </view>
+        <view class="metric-block">
+          <text class="metric-label">总时长</text>
+          <text class="metric-value small">{{currentReport.workoutSummary.totalDurationDisplay}}</text>
+          <text class="budget-metric-sub">它更像这个周期的生活节奏</text>
+        </view>
+      </view>
+
+      <view class="budget-list">
+        <view class="budget-row" wx:for="{{currentReport.workoutSummary.memberSummaries}}" wx:key="label">
+          <view class="budget-row-head">
+            <text class="budget-row-name">{{item.label}}</text>
+            <text class="budget-row-value">{{item.countDisplay}}</text>
+          </view>
+          <text class="budget-row-meta">{{item.durationDisplay}} · {{item.detail}}</text>
+        </view>
+      </view>
+
+      <view class="empty-note" wx:if="{{!currentReport.workoutSummary.hasWorkouts}}">
+        这个周期还没有运动记录，去记录页补一条吧。
+      </view>
+    </view>
+
+    <view class="content-spacer"></view>
+  </scroll-view>
+</view>
