@@ -168,7 +168,6 @@ Page({
   },
 
   onLoad() {
-    this.refreshPage()
   },
 
   onShow() {

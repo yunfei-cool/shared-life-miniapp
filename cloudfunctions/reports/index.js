@@ -587,8 +587,8 @@ function buildTrendSeries(expenses, previousExpenses, periodType, bounds, previo
       previousLabel: formatCurrency(item.previousValue),
       currentHasValue: item.currentValue > 0,
       previousHasValue: item.previousValue > 0,
-      currentBarHeight: item.currentValue > 0 ? Math.max(54, Math.round(Math.sqrt(currentRatio) * 132)) : 6,
-      previousBarHeight: item.previousValue > 0 ? Math.max(34, Math.round(Math.sqrt(previousRatio) * 118)) : 6,
+      currentBarHeight: item.currentValue > 0 ? Math.max(24, Math.round(Math.sqrt(currentRatio) * 132)) : 6,
+      previousBarHeight: item.previousValue > 0 ? Math.max(24, Math.round(Math.sqrt(previousRatio) * 132)) : 6,
       hasValue: item.currentValue > 0 || item.previousValue > 0,
       isLatest: index === series.length - 1
     }

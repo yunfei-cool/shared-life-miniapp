@@ -257,20 +257,54 @@ function requirePairedCouple(couple) {
   }
 }
 
-async function getAllByCouple(collectionName, coupleId) {
+function buildRangeCommand(startValue, endValue) {
+  return _.gte(startValue).and(_.lte(endValue))
+}
+
+function uniqueIds(ids = []) {
+  return Array.from(new Set((ids || []).filter(Boolean)))
+}
+
+function mergeById(lists = []) {
+  const map = {}
+
+  lists.forEach((items) => {
+    ;(items || []).forEach((item) => {
+      if (!item || !item.id) {
+        return
+      }
+
+      map[item.id] = item
+    })
+  })
+
+  return Object.keys(map).map((key) => map[key])
+}
+
+async function listAllByQuery(collectionName, query = {}, options = {}) {
   const collection = db.collection(collectionName)
   const items = []
+  const batchSize = Math.max(1, Math.min(Number(options.batchSize || 100), 100))
+  const maxItems = Number(options.maxItems || 0)
   let skip = 0
-  const limit = 100
 
   while (true) {
-    const result = await collection.where({
-      coupleId
-    }).skip(skip).limit(limit).get()
+    let request = collection.where(query)
+
+    if (options.orderField) {
+      request = request.orderBy(options.orderField, options.orderDirection || 'desc')
+    }
+
+    const result = await request.skip(skip).limit(batchSize).get()
     const chunk = result.data || []
+
     items.push(...chunk)
 
-    if (chunk.length < limit) {
+    if (maxItems > 0 && items.length >= maxItems) {
+      return items.slice(0, maxItems)
+    }
+
+    if (chunk.length < batchSize) {
       break
     }
 
@@ -280,70 +314,221 @@ async function getAllByCouple(collectionName, coupleId) {
   return items
 }
 
-async function loadStore(coupleId) {
-  const [expenses, todos, anniversaries, workouts, activities] = await Promise.all([
-    getAllByCouple(COLLECTIONS.expenses, coupleId),
-    getAllByCouple(COLLECTIONS.todos, coupleId),
-    getAllByCouple(COLLECTIONS.anniversaries, coupleId),
-    getAllByCouple(COLLECTIONS.workouts, coupleId),
-    getAllByCouple(COLLECTIONS.activity, coupleId)
+async function listDocsByIds(collectionName, ids = []) {
+  const unique = uniqueIds(ids)
+
+  if (!unique.length) {
+    return []
+  }
+
+  const chunkSize = 100
+  const chunks = []
+
+  for (let index = 0; index < unique.length; index += chunkSize) {
+    chunks.push(unique.slice(index, index + chunkSize))
+  }
+
+  const groups = await Promise.all(chunks.map((chunk) => {
+    return db.collection(collectionName).where({
+      _id: _.in(chunk)
+    }).limit(chunk.length).get()
+  }))
+
+  return groups.reduce((items, result) => items.concat(result.data || []), [])
+}
+
+async function existsByQuery(collectionName, query = {}) {
+  const result = await db.collection(collectionName).where(query).limit(1).get()
+  return !!((result.data || []).length)
+}
+
+async function countByQuery(collectionName, query = {}) {
+  const result = await db.collection(collectionName).where(query).count()
+  return Number(result.total || 0)
+}
+
+function collectActivityTargetIds(activities = []) {
+  return activities.reduce((accumulator, item) => {
+    if (!item || !item.targetId) {
+      return accumulator
+    }
+
+    if (item.type === 'expense_created') {
+      accumulator.expenseIds.push(item.targetId)
+    } else if (item.type === 'todo_created' || item.type === 'todo_completed') {
+      accumulator.todoIds.push(item.targetId)
+    } else if (item.type === 'anniversary_created') {
+      accumulator.anniversaryIds.push(item.targetId)
+    } else if (item.type === 'workout_created') {
+      accumulator.workoutIds.push(item.targetId)
+    }
+
+    return accumulator
+  }, {
+    expenseIds: [],
+    todoIds: [],
+    anniversaryIds: [],
+    workoutIds: []
+  })
+}
+
+function mapExpenseDoc(item) {
+  return {
+    id: item._id,
+    categoryKey: item.categoryKey,
+    categoryLabel: item.categoryLabel,
+    amountCents: item.amountCents,
+    ownerScope: item.ownerScope,
+    ownerUserId: item.ownerUserId || null,
+    note: item.note || '',
+    occurredOn: item.occurredOn,
+    createdAt: item.createdAt
+  }
+}
+
+function mapTodoDoc(item) {
+  return {
+    id: item._id,
+    title: item.title,
+    note: item.note || '',
+    assigneeUserId: item.assigneeUserId || null,
+    dueAt: item.dueAt || '',
+    status: item.status || 'open',
+    completedAt: item.completedAt || null,
+    createdAt: item.createdAt
+  }
+}
+
+function mapAnniversaryDoc(item) {
+  return {
+    id: item._id,
+    title: item.title,
+    date: item.date,
+    type: item.type,
+    linkedTodoId: item.linkedTodoId || null,
+    note: item.note || ''
+  }
+}
+
+function mapWorkoutDoc(item) {
+  return {
+    id: item._id,
+    typeKey: item.typeKey,
+    typeLabel: item.typeLabel,
+    durationMinutes: item.durationMinutes,
+    occurredOn: item.occurredOn,
+    note: item.note || '',
+    userId: item.userId,
+    createdAt: item.createdAt
+  }
+}
+
+function mapActivityDoc(item) {
+  return {
+    id: item._id,
+    type: item.type,
+    actorUserId: item.actorUserId || null,
+    targetId: item.targetId || '',
+    title: item.title,
+    summary: item.summary || '',
+    amountCents: typeof item.amountCents === 'number' ? item.amountCents : null,
+    ownerScope: item.ownerScope || '',
+    ownerUserId: item.ownerUserId || null,
+    categoryLabel: item.categoryLabel || '',
+    note: item.note || '',
+    itemTitle: item.itemTitle || '',
+    createdAt: item.createdAt
+  }
+}
+
+async function loadStore(coupleId, baseDate = new Date()) {
+  const weeklyBounds = getPeriodBounds('weekly', baseDate)
+  const previousWeeklyBounds = getPreviousPeriodBounds('weekly', baseDate)
+  const monthlyBounds = getPeriodBounds('monthly', baseDate)
+  const expenseStartKey = [previousWeeklyBounds.startKey, monthlyBounds.startKey].sort()[0]
+  const expenseEndKey = [previousWeeklyBounds.endKey, monthlyBounds.endKey].sort().slice(-1)[0]
+  const recentActivityThreshold = addDays(baseDate, -30).toISOString()
+
+  const [
+    expenseDocs,
+    openTodoDocs,
+    completedTodoCount,
+    hasAssignedTodo,
+    hasSharedExpense,
+    anniversaryDocs,
+    weeklyWorkoutDocs,
+    recentActivityDocs
+  ] = await Promise.all([
+    listAllByQuery(COLLECTIONS.expenses, {
+      coupleId,
+      occurredOn: buildRangeCommand(expenseStartKey, expenseEndKey)
+    }),
+    listAllByQuery(COLLECTIONS.todos, {
+      coupleId,
+      status: 'open'
+    }),
+    countByQuery(COLLECTIONS.todos, {
+      coupleId,
+      status: 'completed'
+    }),
+    existsByQuery(COLLECTIONS.todos, {
+      coupleId,
+      assigneeUserId: _.neq(null)
+    }),
+    existsByQuery(COLLECTIONS.expenses, {
+      coupleId,
+      ownerScope: 'shared'
+    }),
+    listAllByQuery(COLLECTIONS.anniversaries, {
+      coupleId
+    }),
+    listAllByQuery(COLLECTIONS.workouts, {
+      coupleId,
+      occurredOn: buildRangeCommand(weeklyBounds.startKey, weeklyBounds.endKey)
+    }),
+    listAllByQuery(COLLECTIONS.activity, {
+      coupleId,
+      createdAt: _.gte(recentActivityThreshold)
+    }, {
+      orderField: 'createdAt',
+      orderDirection: 'desc',
+      maxItems: 50
+    })
+  ])
+
+  const activityTargetIds = collectActivityTargetIds(recentActivityDocs)
+  const linkedTodoIds = anniversaryDocs.map((item) => item.linkedTodoId).filter(Boolean)
+  const [activityExpenseDocs, extraTodoDocs, activityAnniversaryDocs, activityWorkoutDocs] = await Promise.all([
+    listDocsByIds(COLLECTIONS.expenses, activityTargetIds.expenseIds),
+    listDocsByIds(COLLECTIONS.todos, activityTargetIds.todoIds.concat(linkedTodoIds)),
+    listDocsByIds(COLLECTIONS.anniversaries, activityTargetIds.anniversaryIds),
+    listDocsByIds(COLLECTIONS.workouts, activityTargetIds.workoutIds)
   ])
 
   return {
-    expenses: expenses.map((item) => ({
-      id: item._id,
-      categoryKey: item.categoryKey,
-      categoryLabel: item.categoryLabel,
-      amountCents: item.amountCents,
-      ownerScope: item.ownerScope,
-      ownerUserId: item.ownerUserId || null,
-      note: item.note || '',
-      occurredOn: item.occurredOn,
-      createdAt: item.createdAt
-    })),
-    todos: todos.map((item) => ({
-      id: item._id,
-      title: item.title,
-      note: item.note || '',
-      assigneeUserId: item.assigneeUserId || null,
-      dueAt: item.dueAt || '',
-      status: item.status || 'open',
-      completedAt: item.completedAt || null,
-      createdAt: item.createdAt
-    })),
-    anniversaries: anniversaries.map((item) => ({
-      id: item._id,
-      title: item.title,
-      date: item.date,
-      type: item.type,
-      linkedTodoId: item.linkedTodoId || null,
-      note: item.note || ''
-    })),
-    workouts: workouts.map((item) => ({
-      id: item._id,
-      typeKey: item.typeKey,
-      typeLabel: item.typeLabel,
-      durationMinutes: item.durationMinutes,
-      occurredOn: item.occurredOn,
-      note: item.note || '',
-      userId: item.userId,
-      createdAt: item.createdAt
-    })),
-    activities: activities.map((item) => ({
-      id: item._id,
-      type: item.type,
-      actorUserId: item.actorUserId || null,
-      targetId: item.targetId || '',
-      title: item.title,
-      summary: item.summary || '',
-      amountCents: typeof item.amountCents === 'number' ? item.amountCents : null,
-      ownerScope: item.ownerScope || '',
-      ownerUserId: item.ownerUserId || null,
-      categoryLabel: item.categoryLabel || '',
-      note: item.note || '',
-      itemTitle: item.itemTitle || '',
-      createdAt: item.createdAt
-    }))
+    expenses: mergeById([
+      expenseDocs.map(mapExpenseDoc),
+      activityExpenseDocs.map(mapExpenseDoc)
+    ]),
+    todos: mergeById([
+      openTodoDocs.map(mapTodoDoc),
+      extraTodoDocs.map(mapTodoDoc)
+    ]),
+    anniversaries: mergeById([
+      anniversaryDocs.map(mapAnniversaryDoc),
+      activityAnniversaryDocs.map(mapAnniversaryDoc)
+    ]),
+    workouts: mergeById([
+      weeklyWorkoutDocs.map(mapWorkoutDoc),
+      activityWorkoutDocs.map(mapWorkoutDoc)
+    ]),
+    activities: recentActivityDocs.map(mapActivityDoc),
+    meta: {
+      openTodoCount: openTodoDocs.length,
+      completedTodoCount,
+      hasAssignedTodo,
+      hasSharedExpense
+    }
   }
 }
 
@@ -798,12 +983,12 @@ function buildBudgetPlanningPrompt(budgetCard = {}) {
   }
 }
 
-function buildActivationChecklist(couple, budgetCard, store, stepSyncReady) {
+function buildActivationChecklist(couple, budgetCard, meta = {}, stepSyncReady) {
   const profileReady = hasCompleteProfile(couple.creatorProfile || {}) && hasCompleteProfile(couple.partnerProfile || {})
   const budgetMembers = Array.isArray(budgetCard.members) ? budgetCard.members : []
   const budgetReady = budgetMembers.length >= 2 && budgetMembers.every((item) => Number(item.budgetCents || 0) > 0)
-  const firstSharedExpenseReady = (store.expenses || []).some((item) => item.ownerScope === 'shared')
-  const firstAssignedTodoReady = (store.todos || []).some((item) => !!item.assigneeUserId)
+  const firstSharedExpenseReady = !!meta.hasSharedExpense
+  const firstAssignedTodoReady = !!meta.hasAssignedTodo
   const items = [
     {
       key: 'space',
@@ -936,7 +1121,6 @@ async function buildDashboardData(couple, store, openid, baseDate = new Date()) 
   const previousWeeklyTotal = sumExpenses(previousWeeklyExpenses)
   const topCategory = getTopCategoryLabel(weeklyExpenses) || ''
   const openTodos = store.todos.filter((item) => item.status === 'open')
-  const completedTodos = store.todos.filter((item) => item.status === 'completed')
   const overdueTodos = openTodos.filter((item) => item.dueAt && daysUntil(item.dueAt, baseDate) < 0)
   const dueSoonTodos = openTodos.filter((item) => {
     if (!item.dueAt) {
@@ -947,11 +1131,15 @@ async function buildDashboardData(couple, store, openid, baseDate = new Date()) 
     return days >= 0 && days <= 1
   })
   const nextAnniversary = getUpcomingAnniversary(store, baseDate)
-  const budgetSettings = await findBudgetSettings(couple._id)
+  const [budgetSettings, stepSyncReady] = await Promise.all([
+    findBudgetSettings(couple._id),
+    hasRecentStepSync(couple._id, baseDate)
+  ])
   const budgetCard = buildBudgetSummary(store, budgetSettings, couple, openid, baseDate)
   const planningPrompt = buildBudgetPlanningPrompt(budgetCard)
-  const stepSyncReady = await hasRecentStepSync(couple._id, baseDate)
-  const activationChecklist = buildActivationChecklist(couple, budgetCard, store, stepSyncReady)
+  const completedTodoCount = Number((store.meta && store.meta.completedTodoCount) || 0)
+  const openTodoCount = Number((store.meta && store.meta.openTodoCount) || openTodos.length)
+  const activationChecklist = buildActivationChecklist(couple, budgetCard, store.meta || {}, stepSyncReady)
 
   return {
     hero: {
@@ -973,8 +1161,8 @@ async function buildDashboardData(couple, store, openid, baseDate = new Date()) 
     },
     todoCard: {
       label: '待办进度',
-      completedCount: completedTodos.length,
-      openCount: openTodos.length,
+      completedCount: completedTodoCount,
+      openCount: openTodoCount,
       detail: `${overdueTodos.length} 个已超时，${dueSoonTodos.length} 个 24 小时内到期`,
       planningPrompt
     },

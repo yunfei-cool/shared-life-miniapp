@@ -533,24 +533,26 @@ page {
 }
 
 .trend-value-pair {
-  min-height: 48rpx;
-  margin-bottom: 10rpx;
+  min-height: 68rpx;
+  margin-bottom: 12rpx;
   display: flex;
-  align-items: flex-end;
+  flex-direction: column;
+  align-items: center;
   justify-content: center;
-  gap: 8rpx;
+  gap: 4rpx;
 }
 
 .trend-value-slot {
-  width: 30rpx;
+  width: 100%;
+  min-height: 24rpx;
   display: flex;
   justify-content: center;
 }
 
 .trend-value {
   display: block;
-  max-width: 88rpx;
-  font-size: 16rpx;
+  max-width: 100%;
+  font-size: 15rpx;
   line-height: 1.15;
   text-align: center;
   font-weight: 700;

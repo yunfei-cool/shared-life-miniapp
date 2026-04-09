@@ -667,15 +667,21 @@ async function buildDashboard(globalData = {}) {
     return await buildDashboardLocal(globalData)
   }
 
-  const result = await callCloudFunction('dashboard', {
-    action: 'getHomeDashboard'
-  })
+  const [result, stepResult, goalsResult] = await Promise.all([
+    callCloudFunction('dashboard', {
+      action: 'getHomeDashboard'
+    }),
+    getStepSummary(globalData).catch((error) => ({
+      ok: false,
+      message: error && error.message ? error.message : '步数摘要加载失败'
+    })),
+    getGoalsOverview(globalData).catch(() => ({ ok: false }))
+  ])
 
   if (!result.ok) {
     throw new Error(result.message || '首页加载失败')
   }
 
-  const stepResult = await getStepSummary(globalData)
   const dashboard = result.dashboard || null
 
   if (!dashboard) {
@@ -746,7 +752,6 @@ async function buildDashboard(globalData = {}) {
       workoutCount: Number((workoutCard && workoutCard.totalCount) || 0)
     })
     : dashboard.ritualCard
-  const goalsResult = await getGoalsOverview(globalData).catch(() => ({ ok: false }))
   const goalsOverview = goalsResult.ok ? goalsResult.overview : null
   const goalCard = goalsOverview && goalsOverview.homeCard ? goalsOverview.homeCard : null
   const suggestionCard = buildSuggestionCard({

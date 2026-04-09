@@ -385,12 +385,12 @@ page {
 }
 
 .trend-chart {
-  height: 214rpx;
-  margin-top: 18rpx;
+  height: 232rpx;
+  margin-top: 28rpx;
   display: flex;
   align-items: flex-end;
   gap: 10rpx;
-  padding: 0 0 8rpx;
+  padding: 8rpx 0 8rpx;
 }
 
 .trend-item {
@@ -409,7 +409,7 @@ page {
   font-size: 18rpx;
   line-height: 1;
   color: #977661;
-  margin-bottom: 12rpx;
+  margin-bottom: 10rpx;
   font-weight: 700;
 }
 

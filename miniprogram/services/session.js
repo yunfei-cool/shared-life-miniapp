@@ -1,4 +1,5 @@
 const SESSION_KEY = 'shared-life-session-v1'
+const SESSION_REFRESH_TTL_MS = 30 * 1000
 const { callCloudFunction, isPreviewMode } = require('./cloud')
 const { getSpaceState } = require('./couple')
 
@@ -10,7 +11,8 @@ function getDefaultSession() {
     partnerInfo: null,
     isLoggedIn: false,
     hasCouple: false,
-    cloudEnv: null
+    cloudEnv: null,
+    lastSessionRefreshAt: 0
   }
 }
 
@@ -54,7 +56,8 @@ function applySessionState(app, patch = {}) {
     partnerInfo: patch.partnerInfo || null,
     isLoggedIn: !!patch.isLoggedIn,
     hasCouple: !!patch.hasCouple,
-    cloudEnv: patch.cloudEnv || null
+    cloudEnv: patch.cloudEnv || null,
+    lastSessionRefreshAt: Number(patch.lastSessionRefreshAt || 0)
   })
 
   app.globalData = next
@@ -71,7 +74,8 @@ function applyCoupleState(app, coupleInfo, partnerInfo = null, selfProfile = nul
     isLoggedIn: !!(app.globalData && app.globalData.isLoggedIn),
     userId: app.globalData && app.globalData.userId ? app.globalData.userId : null,
     userInfo: selfProfile || (app.globalData && app.globalData.userInfo ? app.globalData.userInfo : null),
-    cloudEnv: app.globalData && app.globalData.cloudEnv ? app.globalData.cloudEnv : null
+    cloudEnv: app.globalData && app.globalData.cloudEnv ? app.globalData.cloudEnv : null,
+    lastSessionRefreshAt: Date.now()
   })
 
   app.globalData = next
@@ -91,7 +95,8 @@ async function loginUser(app, userInfo) {
     userId: result.openid || null,
     userInfo,
     isLoggedIn: true,
-    cloudEnv: result.env || null
+    cloudEnv: result.env || null,
+    lastSessionRefreshAt: 0
   })
 
   app.globalData = next
@@ -103,13 +108,26 @@ async function loginUser(app, userInfo) {
   }
 }
 
-async function refreshSessionFromCloud(app) {
+async function refreshSessionFromCloud(app, options = {}) {
   const globalData = app.globalData || {}
+  const maxAgeMs = typeof options.maxAgeMs === 'number' ? options.maxAgeMs : SESSION_REFRESH_TTL_MS
 
   if (!globalData.isLoggedIn || !globalData.userInfo || isPreviewMode(globalData)) {
     return {
       ok: true,
       session: globalData
+    }
+  }
+
+  if (!options.force) {
+    const lastSessionRefreshAt = Number(globalData.lastSessionRefreshAt || 0)
+
+    if (lastSessionRefreshAt > 0 && Date.now() - lastSessionRefreshAt < maxAgeMs) {
+      return {
+        ok: true,
+        session: globalData,
+        cached: true
+      }
     }
   }
 

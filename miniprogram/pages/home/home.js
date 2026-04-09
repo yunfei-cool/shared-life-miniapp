@@ -211,7 +211,6 @@ Page({
   },
 
   onLoad() {
-    this.refreshPage()
   },
 
   onShow() {
@@ -219,11 +218,13 @@ Page({
   },
 
   async onPullDownRefresh() {
-    await this.refreshPage()
+    await this.refreshPage({
+      forceSessionRefresh: true
+    })
     wx.stopPullDownRefresh()
   },
 
-  async refreshPage() {
+  async refreshPage(options = {}) {
     this.setData({
       isLoading: true
     })
@@ -231,7 +232,9 @@ Page({
     let globalData = app.globalData || {}
 
     try {
-      const refreshed = await refreshSessionFromCloud(app)
+      const refreshed = await refreshSessionFromCloud(app, {
+        force: !!options.forceSessionRefresh
+      })
 
       if (!refreshed.ok) {
         wx.showToast({
