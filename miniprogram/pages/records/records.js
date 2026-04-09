@@ -553,7 +553,7 @@ function buildEditorTitle(mode, segment) {
   const labelMap = {
     expense: '账单',
     todo: '待办',
-    anniversary: '纪念日',
+    anniversary: '重要节点',
     workout: '运动'
   }
 

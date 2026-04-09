@@ -140,75 +140,23 @@
     </view>
 
     <view class="glance-stack">
-      <view class="glance-card card todo-card tappable-card" data-target="todo" bindtap="onSummaryTap">
+      <view class="glance-card card tappable-card {{dashboard.priorityCard.cardClass}}" wx:if="{{dashboard.priorityCard && dashboard.priorityCard.visible}}" bindtap="onPriorityTap">
         <view class="glance-head">
-          <text class="glance-label">{{dashboard.todoCard.label}}</text>
-          <text class="glance-link">去待办</text>
+          <text class="glance-label">{{dashboard.priorityCard.label}}</text>
+          <text class="glance-link">{{dashboard.priorityCard.actionLabel}}</text>
         </view>
-        <view class="todo-progress-line">
-          <view class="todo-progress-part done">
-            <text class="todo-progress-count">{{dashboard.todoCard.completedCount}}</text>
-            <text class="todo-progress-label">已完成</text>
-          </view>
-          <text class="todo-progress-divider">·</text>
-          <view class="todo-progress-part open">
-            <text class="todo-progress-count">{{dashboard.todoCard.openCount}}</text>
-            <text class="todo-progress-label">待办</text>
-          </view>
-        </view>
-        <text class="glance-detail">{{dashboard.todoCard.detail}}</text>
-        <view class="todo-planning-prompt {{dashboard.todoCard.planningPrompt.tone}}" wx:if="{{dashboard.todoCard.planningPrompt.visible}}">
-          <text class="todo-planning-title">{{dashboard.todoCard.planningPrompt.title}}</text>
-          <text class="todo-planning-detail">{{dashboard.todoCard.planningPrompt.detail}}</text>
-        </view>
-      </view>
-
-      <view
-        class="glance-card card goal-glance-card tappable-card is-goal {{dashboard.goalCard.tone}}"
-        wx:if="{{dashboard.goalCard}}"
-        bindtap="onGoalTap"
-      >
-        <view class="glance-head">
-          <text class="glance-label">{{dashboard.goalCard.label}}</text>
-          <text class="glance-link">去目标</text>
-        </view>
-        <text class="goal-title">{{dashboard.goalCard.title}}</text>
-        <text class="goal-detail">{{dashboard.goalCard.detail}}</text>
-        <view class="goal-meta-row">
-          <text class="goal-progress">{{dashboard.goalCard.progressLabel}}</text>
-          <text class="goal-wager" wx:if="{{dashboard.goalCard.wagerStatusLabel}}">{{dashboard.goalCard.wagerStatusLabel}}</text>
-        </view>
-      </view>
-
-      <view class="glance-card card goal-glance-card goal-entry tappable-card" wx:elif="{{dashboard.goalEntryCard && dashboard.goalEntryCard.visible}}">
-        <view class="glance-head">
-          <text class="glance-label">当前目标 / 本周挑战</text>
-          <text class="glance-link" bindtap="onGoalTap">去目标</text>
-        </view>
-        <text class="goal-title">{{dashboard.goalEntryCard.title}}</text>
-        <text class="goal-detail">{{dashboard.goalEntryCard.detail}}</text>
-        <view class="goal-actions-row">
-          <view class="goal-inline-action primary" data-type="monthly" bindtap="onGoalEntryTap">{{dashboard.goalEntryCard.primaryLabel}}</view>
-          <view class="goal-inline-action" data-type="weekly" bindtap="onGoalEntryTap">{{dashboard.goalEntryCard.secondaryLabel}}</view>
-        </view>
-      </view>
-
-      <view class="glance-card card suggestion-glance-card {{dashboard.suggestionCard.tone}}" wx:if="{{dashboard.suggestionCard && dashboard.suggestionCard.visible}}">
-        <view class="glance-head">
-          <text class="glance-label">本周建议</text>
-        </view>
-        <text class="goal-title">{{dashboard.suggestionCard.title}}</text>
-        <text class="goal-detail">{{dashboard.suggestionCard.detail}}</text>
-        <view class="goal-actions-row">
-          <view class="goal-inline-action primary" bindtap="onSuggestionAcceptTap">{{dashboard.suggestionCard.actionLabel}}</view>
-          <view class="goal-inline-action subtle" bindtap="onSuggestionDismissTap">{{dashboard.suggestionCard.secondaryLabel}}</view>
+        <text class="goal-title">{{dashboard.priorityCard.title}}</text>
+        <text class="goal-detail">{{dashboard.priorityCard.detail}}</text>
+        <view class="goal-meta-row" wx:if="{{dashboard.priorityCard.progressLabel || dashboard.priorityCard.currentLabel}}">
+          <text class="goal-progress" wx:if="{{dashboard.priorityCard.progressLabel}}">{{dashboard.priorityCard.progressLabel}}</text>
+          <text class="goal-wager" wx:if="{{dashboard.priorityCard.currentLabel}}">{{dashboard.priorityCard.currentLabel}}</text>
         </view>
       </view>
 
       <view class="glance-card card relationship-surface anniversary-card tappable-card" data-target="anniversary" bindtap="onSummaryTap">
         <view class="glance-head">
           <text class="glance-label">{{dashboard.anniversaryCard.label}}</text>
-          <text class="glance-link">去纪念日</text>
+          <text class="glance-link">去节点</text>
         </view>
         <view class="anniversary-title-row">
           <view class="glance-title anniversary-title">{{dashboard.anniversaryCard.title}}</view>
@@ -221,10 +169,66 @@
       </view>
     </view>
 
+    <view class="section">
+      <view class="section-header compact">
+        <text class="section-title">最近动态</text>
+      </view>
+      <view class="activity-list card">
+        <view
+          class="activity-item activity-{{item.type}}"
+          wx:for="{{dashboard.activityFeed}}"
+          wx:key="id"
+          data-type="{{item.type}}"
+          data-target-id="{{item.targetId}}"
+          bindtap="onActivityTap"
+        >
+          <view class="activity-line">
+            <view class="activity-dot"></view>
+          </view>
+          <view class="activity-copy">
+            <text class="activity-title">{{item.title}}</text>
+            <text class="activity-summary">{{item.summary}}</text>
+          </view>
+          <text class="activity-meta">{{item.meta}}</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="section">
+      <view class="section-header compact">
+        <text class="section-title">待办进度</text>
+        <text class="section-subtitle">需要看细一点时，再看这里。</text>
+      </view>
+      <view class="glance-stack">
+        <view class="glance-card card todo-card tappable-card" data-target="todo" bindtap="onSummaryTap">
+          <view class="glance-head">
+            <text class="glance-label">{{dashboard.todoCard.label}}</text>
+            <text class="glance-link">去待办</text>
+          </view>
+          <view class="todo-progress-line">
+            <view class="todo-progress-part done">
+              <text class="todo-progress-count">{{dashboard.todoCard.completedCount}}</text>
+              <text class="todo-progress-label">已完成</text>
+            </view>
+            <text class="todo-progress-divider">·</text>
+            <view class="todo-progress-part open">
+              <text class="todo-progress-count">{{dashboard.todoCard.openCount}}</text>
+              <text class="todo-progress-label">待办</text>
+            </view>
+          </view>
+          <text class="glance-detail">{{dashboard.todoCard.detail}}</text>
+          <view class="todo-planning-prompt {{dashboard.todoCard.planningPrompt.tone}}" wx:if="{{dashboard.todoCard.planningPrompt.visible}}">
+            <text class="todo-planning-title">{{dashboard.todoCard.planningPrompt.title}}</text>
+            <text class="todo-planning-detail">{{dashboard.todoCard.planningPrompt.detail}}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
     <view class="rhythm-section">
       <view class="section-header compact rhythm-header">
-        <text class="section-title rhythm-title">生活节奏</text>
-        <text class="section-subtitle rhythm-subtitle">运动和步数放在这里看节奏</text>
+        <text class="section-title rhythm-title">生活节奏（可选）</text>
+        <text class="section-subtitle rhythm-subtitle">运动和步数放在这里看，不再占主视角。</text>
       </view>
 
       <view class="glance-stack rhythm-stack">
@@ -278,31 +282,6 @@
       </view>
     </view>
 
-    <view class="section">
-      <view class="section-header compact">
-        <text class="section-title">最近动态</text>
-      </view>
-      <view class="activity-list card">
-        <view
-          class="activity-item activity-{{item.type}}"
-          wx:for="{{dashboard.activityFeed}}"
-          wx:key="id"
-          data-type="{{item.type}}"
-          data-target-id="{{item.targetId}}"
-          bindtap="onActivityTap"
-        >
-          <view class="activity-line">
-            <view class="activity-dot"></view>
-          </view>
-          <view class="activity-copy">
-            <text class="activity-title">{{item.title}}</text>
-            <text class="activity-summary">{{item.summary}}</text>
-          </view>
-          <text class="activity-meta">{{item.meta}}</text>
-        </view>
-      </view>
-    </view>
-
     <view class="content-spacer"></view>
   </scroll-view>
 
@@ -310,7 +289,7 @@
     <view class="goal-composer-sheet card" catchtap="onGoalComposerPanelTap">
       <view class="goal-composer-head">
         <view class="goal-composer-copy">
-          <text class="goal-composer-kicker">{{goalComposerSlot === 'weekly_challenge' ? '本周挑战' : '共同目标'}}</text>
+          <text class="goal-composer-kicker">{{goalComposerSlot === 'weekly_challenge' ? '本周推进' : '共同目标'}}</text>
           <text class="goal-composer-title">{{goalComposerTitle}}</text>
           <text class="goal-composer-subtitle">{{goalComposerSubtitle}}</text>
         </view>
@@ -340,7 +319,7 @@
         </view>
 
         <view class="goal-composer-editor" wx:if="{{goalComposerSelectedTemplate}}">
-          <text class="goal-composer-editor-title">{{goalComposerSlot === 'weekly_challenge' ? '设置本周挑战' : '设置共同目标'}}</text>
+          <text class="goal-composer-editor-title">{{goalComposerSlot === 'weekly_challenge' ? '设置本周推进' : '设置共同目标'}}</text>
           <input
             class="goal-composer-input"
             placeholder="可以自定义一个标题（选填）"
@@ -403,7 +382,7 @@
 
           <view class="goal-composer-actions">
             <view class="goal-composer-save" bindtap="onGoalComposerSave">
-              {{goalComposerSlot === 'weekly_challenge' ? '保存本周挑战' : '保存共同目标'}}
+              {{goalComposerSlot === 'weekly_challenge' ? '保存本周推进' : '保存共同目标'}}
             </view>
           </view>
         </view>

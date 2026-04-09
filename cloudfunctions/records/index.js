@@ -20,6 +20,7 @@ const EXPENSE_CATEGORIES = [
   { key: 'dining', label: '餐饮' },
   { key: 'transport', label: '出行' },
   { key: 'daily', label: '日用' },
+  { key: 'milestone', label: '备婚/大事' },
   { key: 'gift', label: '礼物' },
   { key: 'rent', label: '房租' }
 ]

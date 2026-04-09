@@ -117,7 +117,7 @@ page {
 }
 
 .overview-pill {
-  flex: 0 0 calc(50% - 7rpx);
+  flex: 0 0 calc(33.333% - 10rpx);
   box-sizing: border-box;
   padding: 24rpx 18rpx;
   border-radius: 26rpx;
@@ -188,6 +188,30 @@ page {
   color: #756860;
 }
 
+.secondary-overview-pill {
+  margin: 0 32rpx 18rpx;
+  padding: 18rpx 22rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18rpx;
+  border-radius: 24rpx;
+  background: rgba(240, 248, 244, 0.72);
+  border: 1rpx solid rgba(61, 109, 96, 0.08);
+  box-shadow: 0 10rpx 24rpx rgba(61, 109, 96, 0.04);
+}
+
+.secondary-overview-label {
+  font-size: 22rpx;
+  color: #64827b;
+}
+
+.secondary-overview-value {
+  font-size: 22rpx;
+  color: var(--motion-ink);
+  font-weight: 700;
+}
+
 .segment-bar {
   margin: 0 32rpx 22rpx;
   padding: 8rpx;
@@ -218,6 +242,29 @@ page {
   color: #ffffff;
   font-weight: 700;
   box-shadow: 0 10rpx 22rpx rgba(43, 33, 28, 0.16);
+}
+
+.secondary-segment-row {
+  margin: 0 32rpx 22rpx;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.secondary-segment-chip {
+  padding: 14rpx 20rpx;
+  border-radius: 999rpx;
+  background: rgba(240, 248, 244, 0.76);
+  border: 1rpx solid rgba(61, 109, 96, 0.08);
+  color: #64827b;
+  font-size: 22rpx;
+  font-weight: 600;
+}
+
+.secondary-segment-chip.is-active {
+  background: #426f64;
+  border-color: #426f64;
+  color: #ffffff;
+  box-shadow: 0 10rpx 22rpx rgba(61, 109, 96, 0.16);
 }
 
 .composer-card {

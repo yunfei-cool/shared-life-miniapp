@@ -20,15 +20,19 @@ const EXPENSE_CATEGORIES = [
   { key: 'dining', label: '餐饮' },
   { key: 'transport', label: '出行' },
   { key: 'daily', label: '日用' },
+  { key: 'milestone', label: '备婚/大事' },
   { key: 'gift', label: '礼物' },
   { key: 'rent', label: '房租' }
 ]
 const GOAL_GROUP_LABELS = {
   saving: '省钱',
+  planning: '备婚/大额事项',
   momentum: '推进事情',
-  rhythm: '生活节奏',
-  competition: '轻竞赛'
+  milestone: '关键准备',
+  rhythm: '生活节奏（可选）',
+  competition: '轻竞赛（可选）'
 }
+const GOAL_GROUP_ORDER = ['saving', 'planning', 'momentum', 'milestone', 'rhythm', 'competition']
 
 const MONTHLY_GOAL_TEMPLATES = [
   {
@@ -64,6 +68,18 @@ const MONTHLY_GOAL_TEMPLATES = [
     targetRequired: true,
     targetLabel: '分类预算上限（元）',
     categoryRequired: true
+  },
+  {
+    key: 'milestone_cap',
+    slot: 'monthly_goal',
+    groupKey: 'planning',
+    mode: 'cooperative',
+    label: '备婚/大事专项预算',
+    description: '把备婚或大额事项单独拎出来，避免吞掉正常生活预算。',
+    unit: 'cents',
+    targetRequired: true,
+    targetLabel: '专项预算上限（元）',
+    fixedCategoryKey: 'milestone'
   },
   {
     key: 'budget_duel',
@@ -102,6 +118,17 @@ const WEEKLY_CHALLENGE_TEMPLATES = [
     targetLabel: ''
   },
   {
+    key: 'milestone_prep_clear',
+    slot: 'weekly_challenge',
+    groupKey: 'milestone',
+    mode: 'cooperative',
+    label: '关键准备推进',
+    description: '把这周最重要的婚礼或大事准备项往前推。',
+    unit: 'count',
+    targetRequired: true,
+    targetLabel: '目标推进项数'
+  },
+  {
     key: 'workout_together',
     slot: 'weekly_challenge',
     groupKey: 'rhythm',
@@ -126,7 +153,7 @@ const WEEKLY_CHALLENGE_TEMPLATES = [
   {
     key: 'weekly_spend_cap',
     slot: 'weekly_challenge',
-    groupKey: 'rhythm',
+    groupKey: 'planning',
     mode: 'cooperative',
     label: '本周共同支出控制',
     description: '把这周共同支出先稳住，避免临时失控。',
@@ -273,8 +300,8 @@ function buildTemplateGroups() {
   }, {})
 
   return {
-    monthlyGroups: Object.values(grouped.monthly_goal || {}),
-    weeklyGroups: Object.values(grouped.weekly_challenge || {}),
+    monthlyGroups: Object.values(grouped.monthly_goal || {}).sort((left, right) => GOAL_GROUP_ORDER.indexOf(left.key) - GOAL_GROUP_ORDER.indexOf(right.key)),
+    weeklyGroups: Object.values(grouped.weekly_challenge || {}).sort((left, right) => GOAL_GROUP_ORDER.indexOf(left.key) - GOAL_GROUP_ORDER.indexOf(right.key)),
     categoryOptions: EXPENSE_CATEGORIES
   }
 }
@@ -581,6 +608,7 @@ function decorateGoal(doc = {}, options = {}) {
     return null
   }
 
+  const template = TEMPLATE_MAP[doc.templateKey] || {}
   const {
     budgetOverview = {},
     sharedMonthlySpentCents = 0,
@@ -598,7 +626,8 @@ function decorateGoal(doc = {}, options = {}) {
   const selfMember = members.find((item) => item.userId === openid) || null
   const partnerUserId = openid === couple.creatorUserId ? couple.partnerUserId : couple.creatorUserId
   const partnerMember = members.find((item) => item.userId === partnerUserId) || null
-  const categoryLabel = getCategoryLabel(doc.categoryKey)
+  const categoryKey = doc.categoryKey || template.fixedCategoryKey || ''
+  const categoryLabel = getCategoryLabel(categoryKey)
   let detail = ''
   let progressLabel = ''
   let actionTarget = 'goals'
@@ -625,8 +654,8 @@ function decorateGoal(doc = {}, options = {}) {
     actionLabel = '去预算'
     tone = achieved ? 'goal-coop' : 'goal-over'
     currentLabel = formatCurrency(sharedMonthlySpentCents)
-  } else if (doc.templateKey === 'category_cap') {
-    const currentCents = buildCategoryMonthlySpent(store, doc.categoryKey)
+  } else if (doc.templateKey === 'category_cap' || doc.templateKey === 'milestone_cap') {
+    const currentCents = buildCategoryMonthlySpent(store, categoryKey)
     achieved = currentCents <= doc.targetValue
     detail = `${categoryLabel || '该分类'}已用 ${formatCurrency(currentCents)} / ${formatCurrency(doc.targetValue)}`
     progressLabel = achieved ? `还在目标内 ${formatCurrency(Math.max(doc.targetValue - currentCents, 0))}` : `已超出 ${formatCurrency(Math.max(currentCents - doc.targetValue, 0))}`
@@ -681,6 +710,14 @@ function decorateGoal(doc = {}, options = {}) {
     detail = achieved ? '这周已经把超时待办清到 0' : `当前还有 ${overdueTodoCount} 个超时待办`
     progressLabel = achieved ? '超时待办已清到 0' : `还剩 ${overdueTodoCount} 个`
     currentLabel = `${overdueTodoCount} 个`
+    actionTarget = 'todo'
+    actionLabel = '去待办'
+    tone = achieved ? 'goal-done' : 'goal-coop'
+  } else if (doc.templateKey === 'milestone_prep_clear') {
+    achieved = weeklyTodoCleared >= doc.targetValue
+    detail = `这周已经推进 ${weeklyTodoCleared} / ${doc.targetValue} 项关键准备`
+    progressLabel = achieved ? '本周关键准备推进完成' : `还差 ${Math.max(doc.targetValue - weeklyTodoCleared, 0)} 项`
+    currentLabel = `${weeklyTodoCleared} 项`
     actionTarget = 'todo'
     actionLabel = '去待办'
     tone = achieved ? 'goal-done' : 'goal-coop'
@@ -764,7 +801,9 @@ function decorateGoal(doc = {}, options = {}) {
     slot: doc.slot,
     templateKey: doc.templateKey,
     mode: doc.mode,
-    label: doc.slot === 'monthly_goal' ? '本月共同目标' : '本周节奏挑战',
+    label: doc.slot === 'monthly_goal'
+      ? '本月共同目标'
+      : ((template.groupKey === 'rhythm' || template.groupKey === 'competition') ? '本周可选挑战' : '本周推进重点'),
     title: doc.title,
     customTitle: doc.customTitle || '',
     detail,
@@ -861,7 +900,7 @@ function buildGoalPayload(payload = {}) {
     ? parseAmountToCents(payload.targetValue)
     : Number(payload.targetValue || 0)
   const customTitle = String(payload.customTitle || '').trim()
-  const categoryKey = String(payload.categoryKey || '').trim()
+  const categoryKey = String(payload.categoryKey || template.fixedCategoryKey || '').trim()
   const categoryLabel = getCategoryLabel(categoryKey)
 
   if (template.targetRequired && targetValue <= 0) {
@@ -892,9 +931,11 @@ function buildGoalPayload(payload = {}) {
     template.key === 'save_buffer' ? `本月底至少剩下 ${formatCurrency(targetValue)}` :
     template.key === 'shared_spend_cap' ? `本月共同支出控制在 ${formatCurrency(targetValue)} 内` :
     template.key === 'category_cap' ? `本月${categoryLabel || '该分类'}控制在 ${formatCurrency(targetValue)} 内` :
+    template.key === 'milestone_cap' ? `本月备婚/大事支出控制在 ${formatCurrency(targetValue)} 内` :
     template.key === 'budget_duel' ? '这个月谁更守住自己的预算' :
     template.key === 'todo_clear' ? `这周清掉 ${targetValue} 个待办` :
     template.key === 'overdue_zero' ? '这周把超时待办清到 0' :
+    template.key === 'milestone_prep_clear' ? `这周推进 ${targetValue} 项关键准备` :
     template.key === 'workout_together' ? `这周一起运动 ${targetValue} 次` :
     template.key === 'steps_together' ? `这周一起走到 ${formatCount(targetValue)} 步` :
     template.key === 'weekly_spend_cap' ? `这周共同支出控制在 ${formatCurrency(targetValue)} 内` :

@@ -2,7 +2,7 @@
   <view class="top-bar">
     <view>
       <text class="page-title">报告</text>
-      <text class="page-subtitle">把最近的花费、预算和生活节奏看清楚</text>
+      <text class="page-subtitle">把最近的钱、待办和重要节点看清楚</text>
     </view>
   </view>
 
@@ -235,7 +235,7 @@
 
     <view class="reflection-card card relationship-reflection-card" wx:if="{{currentReport}}">
       <view class="section-head">
-        <text class="section-title">生活观察</text>
+        <text class="section-title">钱、事、节点</text>
       </view>
 
       <view class="signal-grid">
@@ -244,7 +244,7 @@
           <text class="signal-value">{{currentReport.todoSummary}}</text>
         </view>
         <view class="signal-card relationship tappable-card" data-segment="anniversary" bindtap="onSignalTap">
-          <text class="signal-label">纪念日</text>
+          <text class="signal-label">重要节点</text>
           <text class="signal-value">{{currentReport.anniversarySummary}}</text>
         </view>
       </view>
@@ -260,40 +260,6 @@
           <view class="action-index">{{index + 1}}</view>
           <text class="action-text">{{item}}</text>
         </view>
-      </view>
-    </view>
-
-    <view class="analysis-card card workout-analysis-card" wx:if="{{currentReport}}">
-      <view class="section-head">
-        <text class="subsection-title">{{currentReport.workoutSummary.sectionTitle}}</text>
-        <text class="trend-period" bindtap="onWorkoutTap">去运动</text>
-      </view>
-
-      <view class="metrics-row">
-        <view class="metric-block">
-          <text class="metric-label">总次数</text>
-          <text class="metric-value small">{{currentReport.workoutSummary.totalCountDisplay}}</text>
-          <text class="budget-metric-sub">{{currentReport.workoutSummary.focusText}}</text>
-        </view>
-        <view class="metric-block">
-          <text class="metric-label">总时长</text>
-          <text class="metric-value small">{{currentReport.workoutSummary.totalDurationDisplay}}</text>
-          <text class="budget-metric-sub">它更像这个周期的生活节奏</text>
-        </view>
-      </view>
-
-      <view class="budget-list">
-        <view class="budget-row" wx:for="{{currentReport.workoutSummary.memberSummaries}}" wx:key="label">
-          <view class="budget-row-head">
-            <text class="budget-row-name">{{item.label}}</text>
-            <text class="budget-row-value">{{item.countDisplay}}</text>
-          </view>
-          <text class="budget-row-meta">{{item.durationDisplay}} · {{item.detail}}</text>
-        </view>
-      </view>
-
-      <view class="empty-note" wx:if="{{!currentReport.workoutSummary.hasWorkouts}}">
-        这个周期还没有运动记录，去记录页补一条吧。
       </view>
     </view>
 

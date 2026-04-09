@@ -2,7 +2,7 @@
   <view class="top-bar">
     <view>
       <text class="page-title">目标</text>
-      <text class="page-subtitle">一起把钱和事推进，也允许有一点轻松的 PK。</text>
+      <text class="page-subtitle">先把钱和事推进，步数和 PK 只保留为可选挑战。</text>
     </view>
   </view>
 
@@ -13,7 +13,7 @@
 
   <view class="empty-state card" wx:elif="{{pairState !== 'paired'}}">
     <text class="state-title">先连接共享空间</text>
-    <text class="state-description">连好之后，这里才能开始设共同目标和本周挑战。</text>
+    <text class="state-description">连好之后，这里才能开始设共同目标和本周推进重点。</text>
     <button class="primary-button" bindtap="onGoSetupTap">去「我们」设置</button>
   </view>
 
@@ -22,7 +22,7 @@
       <view class="section-head">
         <view>
           <text class="section-title">本月共同目标</text>
-          <text class="section-subtitle">优先做省钱目标，也允许双方同意的预算对决。</text>
+          <text class="section-subtitle">优先做省钱和备婚/大额事项专项预算，预算对决只保留为可选项。</text>
         </view>
       </view>
 
@@ -78,7 +78,7 @@
         />
         <input
           class="editor-input"
-          wx:if="{{monthlyForm.templateKey === 'save_buffer' || monthlyForm.templateKey === 'shared_spend_cap' || monthlyForm.templateKey === 'category_cap'}}"
+          wx:if="{{monthlyForm.templateKey === 'save_buffer' || monthlyForm.templateKey === 'shared_spend_cap' || monthlyForm.templateKey === 'category_cap' || monthlyForm.templateKey === 'milestone_cap'}}"
           type="digit"
           placeholder="输入目标金额（元）"
           value="{{monthlyForm.targetValue}}"
@@ -133,8 +133,8 @@
     <view class="goal-section card">
       <view class="section-head">
         <view>
-          <text class="section-title">本周挑战</text>
-          <text class="section-subtitle">推进事情、拉起节奏，或者来一场轻松的 PK。</text>
+          <text class="section-title">本周推进重点</text>
+          <text class="section-subtitle">优先推进待办和关键准备，节奏挑战放到后面。</text>
         </view>
       </view>
 
@@ -179,7 +179,7 @@
       </view>
 
       <view class="editor-card motion" wx:if="{{weeklyForm.templateKey}}">
-        <text class="editor-title">创建本周挑战</text>
+        <text class="editor-title">创建本周推进重点</text>
         <input
           class="editor-input"
           placeholder="可以自定义一个标题（选填）"
@@ -190,7 +190,7 @@
         />
         <input
           class="editor-input"
-          wx:if="{{weeklyForm.templateKey === 'todo_clear' || weeklyForm.templateKey === 'workout_together' || weeklyForm.templateKey === 'steps_together' || weeklyForm.templateKey === 'weekly_spend_cap'}}"
+          wx:if="{{weeklyForm.templateKey === 'todo_clear' || weeklyForm.templateKey === 'milestone_prep_clear' || weeklyForm.templateKey === 'workout_together' || weeklyForm.templateKey === 'steps_together' || weeklyForm.templateKey === 'weekly_spend_cap'}}"
           type="{{weeklyForm.templateKey === 'weekly_spend_cap' ? 'digit' : 'number'}}"
           placeholder="{{weeklyForm.templateKey === 'steps_together' ? '输入目标总步数' : (weeklyForm.templateKey === 'weekly_spend_cap' ? '输入本周共同支出上限（元）' : '输入目标值')}}"
           value="{{weeklyForm.targetValue}}"
@@ -223,7 +223,7 @@
             bindinput="onFormInput"
           />
         </view>
-        <button class="primary-button compact motion" data-slot="weekly_challenge" bindtap="onSaveGoal">保存本周挑战</button>
+        <button class="primary-button compact motion" data-slot="weekly_challenge" bindtap="onSaveGoal">保存本周推进重点</button>
       </view>
     </view>
 

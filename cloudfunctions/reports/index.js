@@ -746,7 +746,7 @@ function buildSuggestions(topCategory, overdueTodos, anniversarySummary) {
   }
 
   if (anniversarySummary.indexOf('还没准备项') >= 0) {
-    suggestions.push('最近纪念日临近了，最好马上补一个准备待办。')
+    suggestions.push('最近重要节点临近了，最好马上补一个准备待办。')
   }
 
   if (!suggestions.length) {

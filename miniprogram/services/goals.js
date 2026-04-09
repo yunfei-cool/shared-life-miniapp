@@ -16,10 +16,13 @@ const GOALS_STORAGE_PREFIX = 'shared-life-goals:'
 const EXPENSE_CATEGORY_OPTIONS = getExpenseCategories()
 const GOAL_GROUP_LABELS = {
   saving: '省钱',
+  planning: '备婚/大额事项',
   momentum: '推进事情',
-  rhythm: '生活节奏',
-  competition: '轻竞赛'
+  milestone: '关键准备',
+  rhythm: '生活节奏（可选）',
+  competition: '轻竞赛（可选）'
 }
+const GOAL_GROUP_ORDER = ['saving', 'planning', 'momentum', 'milestone', 'rhythm', 'competition']
 
 const MONTHLY_GOAL_TEMPLATES = [
   {
@@ -58,6 +61,19 @@ const MONTHLY_GOAL_TEMPLATES = [
     targetRequired: true,
     targetLabel: '分类预算上限（元）',
     categoryRequired: true
+  },
+  {
+    key: 'milestone_cap',
+    slot: 'monthly_goal',
+    groupKey: 'planning',
+    mode: 'cooperative',
+    label: '备婚/大事专项预算',
+    description: '把备婚或大额事项单独拎出来，避免吞掉正常生活预算。',
+    titleBuilder: (targetValue) => `本月备婚/大事支出控制在 ${formatCurrency(targetValue)} 内`,
+    unit: 'cents',
+    targetRequired: true,
+    targetLabel: '专项预算上限（元）',
+    fixedCategoryKey: 'milestone'
   },
   {
     key: 'budget_duel',
@@ -99,6 +115,18 @@ const WEEKLY_CHALLENGE_TEMPLATES = [
     targetLabel: ''
   },
   {
+    key: 'milestone_prep_clear',
+    slot: 'weekly_challenge',
+    groupKey: 'milestone',
+    mode: 'cooperative',
+    label: '关键准备推进',
+    description: '把这周最重要的婚礼或大事准备项往前推。',
+    titleBuilder: (targetValue) => `这周推进 ${targetValue} 项关键准备`,
+    unit: 'count',
+    targetRequired: true,
+    targetLabel: '目标推进项数'
+  },
+  {
     key: 'workout_together',
     slot: 'weekly_challenge',
     groupKey: 'rhythm',
@@ -125,7 +153,7 @@ const WEEKLY_CHALLENGE_TEMPLATES = [
   {
     key: 'weekly_spend_cap',
     slot: 'weekly_challenge',
-    groupKey: 'rhythm',
+    groupKey: 'planning',
     mode: 'cooperative',
     label: '本周共同支出控制',
     description: '把这周共同支出先稳住，避免临时失控。',
@@ -199,7 +227,7 @@ function getGoalsTemplates() {
     group.templates.push(item)
     result[groupKey] = group
     return result
-  }, {}))
+  }, {})).sort((left, right) => GOAL_GROUP_ORDER.indexOf(left.key) - GOAL_GROUP_ORDER.indexOf(right.key))
 
   return {
     monthlyGoals: MONTHLY_GOAL_TEMPLATES,
@@ -371,12 +399,14 @@ function buildInputs(globalData = {}, store = {}, budgetOverview = {}, stepSumma
 }
 
 function buildGoalProgress(doc, inputs = {}) {
+  const template = TEMPLATE_MAP[doc.templateKey] || {}
   const budgetOverview = inputs.budgetOverview || {}
   const memberSummaries = budgetOverview.memberSummaries || []
   const selfMember = memberSummaries.find((item) => item.userId === inputs.currentUserId) || null
   const partnerMember = memberSummaries.find((item) => item.userId === inputs.partnerUserId) || null
   const isEnded = doc.endDate ? toDateKey(inputs.baseDate) > doc.endDate : false
-  const categoryLabel = getCategoryLabel(doc.categoryKey)
+  const categoryKey = doc.categoryKey || template.fixedCategoryKey || ''
+  const categoryLabel = getCategoryLabel(categoryKey)
 
   if (doc.templateKey === 'save_buffer') {
     const remainingCents = Number(budgetOverview.remainingCents || 0)
@@ -420,8 +450,8 @@ function buildGoalProgress(doc, inputs = {}) {
     }
   }
 
-  if (doc.templateKey === 'category_cap') {
-    const currentCents = Number(buildCategoryMonthlySpent(inputs.store, doc.categoryKey, inputs.baseDate) || 0)
+  if (doc.templateKey === 'category_cap' || doc.templateKey === 'milestone_cap') {
+    const currentCents = Number(buildCategoryMonthlySpent(inputs.store, categoryKey, inputs.baseDate) || 0)
     const achieved = currentCents <= doc.targetValue
     const gap = Math.max(currentCents - doc.targetValue, 0)
 
@@ -526,6 +556,27 @@ function buildGoalProgress(doc, inputs = {}) {
       progressLabel: achieved ? '超时待办已清到 0' : `还剩 ${overdueCount} 个`,
       targetLabel: '0 个',
       currentLabel: `${overdueCount} 个`,
+      actionTarget: 'todo',
+      actionLabel: '去待办',
+      tone: achieved ? 'goal-done' : 'goal-coop',
+      isEnded
+    }
+  }
+
+  if (doc.templateKey === 'milestone_prep_clear') {
+    const currentCount = Number(inputs.weeklyTodoClearedCount || 0)
+    const achieved = currentCount >= doc.targetValue
+    const gap = Math.max(doc.targetValue - currentCount, 0)
+
+    return {
+      achieved,
+      leaderUserId: '',
+      winnerUserId: achieved ? (doc.winnerUserId || inputs.currentUserId || '') : '',
+      title: doc.title,
+      detail: `这周已经推进 ${currentCount} / ${doc.targetValue} 项关键准备`,
+      progressLabel: achieved ? '本周关键准备推进完成' : `还差 ${gap} 项`,
+      targetLabel: `${doc.targetValue} 项`,
+      currentLabel: `${currentCount} 项`,
       actionTarget: 'todo',
       actionLabel: '去待办',
       tone: achieved ? 'goal-done' : 'goal-coop',
@@ -687,6 +738,7 @@ function decorateGoalCard(doc, inputs = {}) {
     return null
   }
 
+  const template = TEMPLATE_MAP[doc.templateKey] || {}
   const progress = buildGoalProgress(doc, inputs)
   const winnerLabel = progress.winnerUserId
     ? getDisplayNameByUserId(progress.winnerUserId, {
@@ -710,7 +762,9 @@ function decorateGoalCard(doc, inputs = {}) {
     slot: doc.slot,
     templateKey: doc.templateKey,
     mode: doc.mode,
-    label: doc.slot === 'monthly_goal' ? '本月共同目标' : '本周节奏挑战',
+    label: doc.slot === 'monthly_goal'
+      ? '本月共同目标'
+      : ((template.groupKey === 'rhythm' || template.groupKey === 'competition') ? '本周可选挑战' : '本周推进重点'),
     title: progress.title,
     customTitle: doc.customTitle || '',
     detail: progress.detail,
@@ -796,7 +850,7 @@ function buildGoalPayload(payload = {}, globalData = {}) {
     ? parseAmountToCents(payload.targetValue)
     : Number(payload.targetValue || 0)
   const customTitle = String(payload.customTitle || '').trim()
-  const categoryKey = String(payload.categoryKey || '').trim()
+  const categoryKey = String(payload.categoryKey || template.fixedCategoryKey || '').trim()
   const categoryLabel = getCategoryLabel(categoryKey)
 
   if (template.targetRequired && targetValue <= 0) {

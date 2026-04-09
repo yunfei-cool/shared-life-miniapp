@@ -1168,13 +1168,13 @@ async function buildDashboardData(couple, store, openid, baseDate = new Date()) 
     },
     budgetCard,
     anniversaryCard: nextAnniversary ? {
-      label: '最近纪念日',
+      label: '最近重要节点',
       title: nextAnniversary.title,
       dateLabel: nextAnniversary.nextDateLabel,
       daysLeftLabel: nextAnniversary.daysLeftLabel,
       prepTodo: nextAnniversary.linkedTodoLabel.replace('准备项: ', '')
     } : {
-      label: '最近纪念日',
+      label: '最近重要节点',
       title: '还没有纪念日',
       dateLabel: '去记录里添加',
       daysLeftLabel: '--',

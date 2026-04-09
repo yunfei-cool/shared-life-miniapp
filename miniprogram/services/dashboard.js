@@ -251,17 +251,129 @@ function buildGoalEntryCard() {
   return {
     visible: true,
     title: '还没有当前目标',
-    detail: '可以先设一个本月共同目标，或者开始本周挑战。',
+    detail: '可以先设一个本月共同目标，或者把这周最关键的准备先定下来。',
     primaryLabel: '设一个共同目标',
     primaryContext: {
       slot: 'monthly_goal'
     },
-    secondaryLabel: '开始本周挑战',
+    secondaryLabel: '开始本周推进',
     secondaryContext: {
-      slot: 'weekly_challenge'
+      slot: 'weekly_challenge',
+      templateKey: 'milestone_prep_clear'
     },
     tone: 'goal-entry'
   }
+}
+
+function buildPriorityCard(options = {}) {
+  const {
+    suggestionCard = null,
+    goalCard = null,
+    goalEntryCard = null,
+    todoCard = {},
+    anniversaryCard = {}
+  } = options
+
+  if (suggestionCard && suggestionCard.visible) {
+    return {
+      visible: true,
+      label: '当前最该推进的事',
+      title: suggestionCard.title,
+      detail: suggestionCard.detail,
+      progressLabel: suggestionCard.acceptMode === 'goal_prefill' ? '先把这件事定下来' : '',
+      currentLabel: '',
+      actionLabel: suggestionCard.actionLabel || '去处理',
+      actionMode: suggestionCard.acceptMode || 'direct',
+      actionTarget: suggestionCard.actionTarget || 'todo',
+      prefill: suggestionCard.prefill || null,
+      cardClass: `suggestion-glance-card ${suggestionCard.tone || ''}`.trim()
+    }
+  }
+
+  if (goalCard) {
+    return {
+      visible: true,
+      label: '当前最该推进的事',
+      title: goalCard.title,
+      detail: goalCard.detail,
+      progressLabel: goalCard.progressLabel || '',
+      currentLabel: goalCard.currentLabel || '',
+      actionLabel: goalCard.actionLabel || '去目标',
+      actionMode: 'direct',
+      actionTarget: goalCard.actionTarget || 'goals',
+      prefill: null,
+      cardClass: `goal-glance-card is-goal ${goalCard.tone || ''}`.trim()
+    }
+  }
+
+  if (todoCard.planningPrompt && todoCard.planningPrompt.visible) {
+    return {
+      visible: true,
+      label: '当前最该推进的事',
+      title: todoCard.planningPrompt.title,
+      detail: todoCard.planningPrompt.detail,
+      progressLabel: '先把要花的钱排进待办',
+      currentLabel: '',
+      actionLabel: '去待办',
+      actionMode: 'direct',
+      actionTarget: 'todo',
+      prefill: null,
+      cardClass: `goal-glance-card is-mission budget-${todoCard.planningPrompt.tone}`.trim()
+    }
+  }
+
+  const openCount = Number(todoCard.openCount || 0)
+  if (openCount > 0) {
+    return {
+      visible: true,
+      label: '当前最该推进的事',
+      title: `这周先推进 ${Math.min(openCount, 3)} 项待办`,
+      detail: todoCard.detail || '先把正在开的事往前推，首页和报告会更像真的在运转。',
+      progressLabel: `${openCount} 项待办还开着`,
+      currentLabel: '',
+      actionLabel: '去待办',
+      actionMode: 'direct',
+      actionTarget: 'todo',
+      prefill: null,
+      cardClass: 'goal-glance-card is-goal goal-coop'
+    }
+  }
+
+  if (anniversaryCard && anniversaryCard.title && anniversaryCard.title !== '还没有纪念日') {
+    const needsPrep = String(anniversaryCard.prepTodo || '').indexOf('还') === 0
+
+    return {
+      visible: true,
+      label: '当前最该推进的事',
+      title: `给 ${anniversaryCard.title} 留出准备时间`,
+      detail: `${anniversaryCard.daysLeftLabel || ''} · ${anniversaryCard.prepTodo || '先补一条准备项'}`,
+      progressLabel: '',
+      currentLabel: '',
+      actionLabel: needsPrep ? '去待办' : '去节点',
+      actionMode: 'direct',
+      actionTarget: needsPrep ? 'todo' : 'anniversary',
+      prefill: null,
+      cardClass: 'suggestion-glance-card relationship'
+    }
+  }
+
+  if (goalEntryCard && goalEntryCard.visible) {
+    return {
+      visible: true,
+      label: '当前最该推进的事',
+      title: goalEntryCard.title,
+      detail: goalEntryCard.detail,
+      progressLabel: '',
+      currentLabel: '',
+      actionLabel: goalEntryCard.secondaryLabel || goalEntryCard.primaryLabel || '去目标',
+      actionMode: 'goal_prefill',
+      actionTarget: 'goals',
+      prefill: goalEntryCard.secondaryContext || goalEntryCard.primaryContext || null,
+      cardClass: 'goal-glance-card goal-entry'
+    }
+  }
+
+  return null
 }
 
 function buildSuggestionCard(options = {}) {
@@ -393,7 +505,7 @@ function buildSuggestionCard(options = {}) {
       visible: true,
       kind: 'anniversary_prep',
       dismissKey: `anniversary:${weeklyBounds.startKey}`,
-      title: '纪念日快到了',
+      title: '重要节点快到了',
       detail: '先补一个准备待办，别把重要的事拖到最后一天。',
       acceptMode: 'direct',
       actionTarget: 'todo',
@@ -598,6 +710,30 @@ async function buildDashboardLocal(globalData = {}, storeOverride = null, activi
     baseDate: new Date()
   })
   const goalEntryCard = goalCard ? null : buildGoalEntryCard()
+  const anniversaryCard = nextAnniversary ? {
+    label: '最近重要节点',
+    title: nextAnniversary.title,
+    dateLabel: nextAnniversary.nextDateLabel,
+    daysLeftLabel: nextAnniversary.daysLeftLabel,
+    prepTodo: nextAnniversary.linkedTodoLabel.replace('准备项: ', '')
+  } : {
+    label: '最近重要节点',
+    title: '还没有纪念日',
+    dateLabel: '去记录里添加',
+    daysLeftLabel: '--',
+    prepTodo: '先建立一个重要日子'
+  }
+  const priorityCard = buildPriorityCard({
+    suggestionCard,
+    goalCard,
+    goalEntryCard,
+    todoCard: {
+      openCount: openTodos.length,
+      detail: `${overdueTodos.length} 个已超时，${dueSoonTodos.length} 个 24 小时内到期`,
+      planningPrompt
+    },
+    anniversaryCard
+  })
   const financeHero = buildFinanceHero({
     totalDisplay: formatCurrency(weeklyTotal),
     deltaDisplay: formatPercentChange(weeklyTotal, previousWeeklyTotal),
@@ -640,19 +776,8 @@ async function buildDashboardLocal(globalData = {}, storeOverride = null, activi
     goalCard,
     goalEntryCard,
     suggestionCard,
-    anniversaryCard: nextAnniversary ? {
-      label: '最近纪念日',
-      title: nextAnniversary.title,
-      dateLabel: nextAnniversary.nextDateLabel,
-      daysLeftLabel: nextAnniversary.daysLeftLabel,
-      prepTodo: nextAnniversary.linkedTodoLabel.replace('准备项: ', '')
-    } : {
-      label: '最近纪念日',
-      title: '还没有纪念日',
-      dateLabel: '去记录里添加',
-      daysLeftLabel: '--',
-      prepTodo: '先建立一个重要日子'
-    },
+    priorityCard,
+    anniversaryCard,
     workoutCard,
     stepCard,
     activationChecklist,
@@ -763,11 +888,25 @@ async function buildDashboard(globalData = {}) {
     baseDate: new Date()
   })
   const goalEntryCard = goalCard ? null : buildGoalEntryCard()
+  const anniversaryCard = dashboard.anniversaryCard
+    ? Object.assign({}, dashboard.anniversaryCard, {
+      label: '最近重要节点'
+    })
+    : dashboard.anniversaryCard
+  const priorityCard = buildPriorityCard({
+    suggestionCard,
+    goalCard,
+    goalEntryCard,
+    todoCard: dashboard.todoCard,
+    anniversaryCard
+  })
   const financeHero = buildFinanceHero(dashboard.spendCard, dashboard.spendChart, budgetCardBase)
 
   return Object.assign({}, dashboard, {
     budgetCard: budgetCardBase,
     financeHero,
+    anniversaryCard,
+    priorityCard,
     workoutCard,
     stepCard,
     activationChecklist,

@@ -287,7 +287,7 @@ function buildMissionSummary(report = null, periodType = 'weekly', goalsOverview
   if (goalCard) {
     return {
       visible: true,
-      sectionTitle: '目标进展',
+      sectionTitle: '当前最该推进',
       label: goalCard.label,
       title: goalCard.title,
       detail: goalCard.detail,
@@ -306,7 +306,7 @@ function buildMissionSummary(report = null, periodType = 'weekly', goalsOverview
   if (budgetSummary.hasBudget && progressPercent >= 100) {
     return {
       visible: true,
-      sectionTitle: '本期共享任务',
+      sectionTitle: '当前最该推进',
       label: '预算和待办',
       title: '本月共同预算已超出',
       detail: '这个周期先把接下来的支出排进待办，再决定要不要买。',
@@ -322,7 +322,7 @@ function buildMissionSummary(report = null, periodType = 'weekly', goalsOverview
   if (budgetSummary.hasBudget && progressPercent >= 85) {
     return {
       visible: true,
-      sectionTitle: '本期共享任务',
+      sectionTitle: '当前最该推进',
       label: '预算和待办',
       title: '预算已接近上限',
       detail: '接下来要花的钱，先排进待办再决定。',
@@ -338,7 +338,7 @@ function buildMissionSummary(report = null, periodType = 'weekly', goalsOverview
   if (String(report.todoSummary || '').indexOf('超时') >= 0) {
     return {
       visible: true,
-      sectionTitle: '本期共享任务',
+      sectionTitle: '当前最该推进',
       label: '待办推进',
       title: '这周先清掉积压待办',
       detail: '把已经拖住的事先往前推，首页和报告会更像真的在运转。',
@@ -354,9 +354,9 @@ function buildMissionSummary(report = null, periodType = 'weekly', goalsOverview
   if (String(report.anniversarySummary || '').indexOf('还没准备项') >= 0) {
     return {
       visible: true,
-      sectionTitle: '本期共享任务',
-      label: '纪念日准备',
-      title: '纪念日快到了',
+      sectionTitle: '当前最该推进',
+      label: '重要节点准备',
+      title: '重要节点快到了',
       detail: '先补一个准备待办，别把重要的事拖到最后一天。',
       progressLabel: '先补一个准备待办',
       currentLabel: '',
@@ -369,10 +369,10 @@ function buildMissionSummary(report = null, periodType = 'weekly', goalsOverview
 
   return {
     visible: true,
-    sectionTitle: '本期共享任务',
+    sectionTitle: '当前最该推进',
     label: '共同目标',
     title: '设一个共同目标',
-    detail: '给这个月定一个预算目标，或者开始一场本周节奏挑战。',
+    detail: '给这个月定一个预算目标，或者开始一项本周推进重点。',
     progressLabel: '先定一个目标',
     currentLabel: '',
     wagerStatusLabel: '',
@@ -517,7 +517,7 @@ function buildSuggestions(topCategory, overdueTodos, anniversarySummary) {
   }
 
   if (anniversarySummary.indexOf('还没准备项') >= 0) {
-    suggestions.push('最近纪念日临近了，最好马上补一个准备待办。')
+    suggestions.push('最近重要节点临近了，最好马上补一个准备待办。')
   }
 
   if (!suggestions.length) {

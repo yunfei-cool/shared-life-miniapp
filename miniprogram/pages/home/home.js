@@ -76,6 +76,42 @@ function buildGoalComposerForm(context = {}) {
   })
 }
 
+function buildFallbackPriorityCard(dashboard = {}) {
+  if (dashboard.goalCard) {
+    return {
+      visible: true,
+      label: '当前最该推进的事',
+      title: dashboard.goalCard.title,
+      detail: dashboard.goalCard.detail,
+      progressLabel: dashboard.goalCard.progressLabel || '',
+      currentLabel: dashboard.goalCard.currentLabel || '',
+      actionLabel: dashboard.goalCard.actionLabel || '去目标',
+      actionMode: 'direct',
+      actionTarget: dashboard.goalCard.actionTarget || 'goals',
+      prefill: null,
+      cardClass: `goal-glance-card is-goal ${dashboard.goalCard.tone || ''}`.trim()
+    }
+  }
+
+  if (dashboard.goalEntryCard && dashboard.goalEntryCard.visible) {
+    return {
+      visible: true,
+      label: '当前最该推进的事',
+      title: dashboard.goalEntryCard.title,
+      detail: dashboard.goalEntryCard.detail,
+      progressLabel: '',
+      currentLabel: '',
+      actionLabel: dashboard.goalEntryCard.secondaryLabel || dashboard.goalEntryCard.primaryLabel || '去目标',
+      actionMode: 'goal_prefill',
+      actionTarget: 'goals',
+      prefill: dashboard.goalEntryCard.secondaryContext || dashboard.goalEntryCard.primaryContext || null,
+      cardClass: 'goal-glance-card goal-entry'
+    }
+  }
+
+  return null
+}
+
 function createEmptyDashboard() {
   return {
     financeHero: {
@@ -130,21 +166,23 @@ function createEmptyDashboard() {
     goalEntryCard: {
       visible: true,
       title: '还没有当前目标',
-      detail: '可以先设一个本月共同目标，或者开始本周挑战。',
+      detail: '可以先设一个本月共同目标，或者把这周最关键的准备先定下来。',
       primaryLabel: '设一个共同目标',
       primaryContext: {
         slot: 'monthly_goal'
       },
-      secondaryLabel: '开始本周挑战',
+      secondaryLabel: '开始本周推进',
       secondaryContext: {
-        slot: 'weekly_challenge'
+        slot: 'weekly_challenge',
+        templateKey: 'milestone_prep_clear'
       },
       tone: 'goal-entry'
     },
+    priorityCard: null,
     suggestionCard: null,
     goalsOverview: null,
     anniversaryCard: {
-      label: '最近纪念日',
+      label: '最近重要节点',
       title: '还没有纪念日',
       dateLabel: '去记录里添加',
       daysLeftLabel: '--',
@@ -270,6 +308,7 @@ Page({
         dashboard.suggestionCard = Object.assign({}, dashboard.suggestionCard, {
           visible: false
         })
+        dashboard.priorityCard = buildFallbackPriorityCard(dashboard)
       }
     }
 
@@ -399,6 +438,22 @@ Page({
     this.goToSummaryTarget(target || 'expense', context)
   },
 
+  onPriorityTap() {
+    const dashboard = this.data.dashboard || {}
+    const priorityCard = dashboard.priorityCard || null
+
+    if (!priorityCard) {
+      return
+    }
+
+    if (priorityCard.actionMode === 'goal_prefill' && priorityCard.prefill) {
+      this.openGoalComposer(priorityCard.prefill)
+      return
+    }
+
+    this.goToSummaryTarget(priorityCard.actionTarget || 'todo')
+  },
+
   onGoalTap() {
     wx.navigateTo({
       url: '/pages/goals/goals'
@@ -454,10 +509,12 @@ Page({
     }
 
     wx.setStorageSync(key, true)
+    const fallbackPriorityCard = buildFallbackPriorityCard(dashboard)
     this.setData({
       'dashboard.suggestionCard': Object.assign({}, suggestionCard, {
         visible: false
-      })
+      }),
+      'dashboard.priorityCard': fallbackPriorityCard
     })
   },
 
@@ -514,10 +571,10 @@ Page({
     this.setData({
       goalComposerVisible: true,
       goalComposerSlot: slot,
-      goalComposerTitle: slot === 'weekly_challenge' ? '开始本周挑战' : '设一个共同目标',
+      goalComposerTitle: slot === 'weekly_challenge' ? '开始本周推进' : '设一个共同目标',
       goalComposerSubtitle: slot === 'weekly_challenge'
-        ? '先选一个推进事情、生活节奏或轻竞赛模板。'
-        : '先选一个省钱或预算类模板，再决定标题和目标值。',
+        ? '先选一个待办、关键准备或可选节奏模板。'
+        : '先选一个省钱或备婚/大额事项模板，再决定标题和目标值。',
       goalComposerGroups: groups,
       goalComposerCategoryOptions: templates.categoryOptions || [],
       goalComposerForm: form,
